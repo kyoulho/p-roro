@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.ClusterScanMapper">
+    <select id="selectByStatus" resultType="io.playce.roro.common.dto.k8s.CommandProcessorRequest">
+select cs.k8s_cluster_id
+     , cs.cluster_scan_id
+     , kc.config
+     , 'localRunner' as runner_name
+  from cluster_scan cs
+  join k8s_cluster kc
+    on kc.k8s_cluster_id = cs.k8s_cluster_id
+ where cs.scan_status in <foreach item="s" index="index" collection="status" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+
+</mapper>

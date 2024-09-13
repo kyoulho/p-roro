@@ -1,0 +1,10 @@
+# Spring Doc(Swagger) Configuration
+springdoc:
+  api-docs:
+    groups:
+      enabled: true
+    enabled: false
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+    disable-swagger-default-url: true

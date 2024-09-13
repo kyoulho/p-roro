@@ -1,0 +1,23 @@
+tomcat-command:
+  unix:
+    CHECK_PATH: "cd %s"
+    VERSION: "sh %s/bin/version.sh | grep 'Server version:'"
+    RELEASE_NOTE: "cat %s/RELEASE-NOTES | grep 'Apache Tomcat Version'"
+    VMOPTION: "ps -ef | grep java | grep catalina.bas[e] | grep %s"
+    CAT: "cat %s"
+    DIRECTORY: "ls -l %s | grep ^d"
+    RUN_USER: "ps -ef | grep catalina.base | grep -v grep | awk '{print $1}' | uniq"
+    JAVA_HOME: "echo $JAVA_HOME"
+    JAVA_CMD_1: "%sjava -version 2>&1 | head -n 1 | awk -F '\"' '{print $2}'"
+    JAVA_CMD_2: "java -version 2>&1 | head -n 1 | awk -F '\"' '{print $2}'"
+  windows:
+    CHECK_PATH: ""
+    VERSION: ""
+    RELEASE_NOTE: ""
+    VMOPTION: ""
+    CAT: ""
+    DIRECTORY: ""
+    RUN_USER: ""
+    JAVA_HOME: ""
+    JAVA_CMD_1: ""
+    JAVA_CMD_2: ""

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>playce-roro</artifactId>
+        <groupId>io.playce.roro</groupId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>roro-mw-asmt</artifactId>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>roro-mw-asmt-interface</module>
+        <module>roro-mw-asmt-apache</module>
+        <module>roro-mw-asmt-tomcat</module>
+        <module>roro-mw-asmt-weblogic</module>
+        <module>roro-mw-asmt-jeus</module>
+        <module>roro-mw-asmt-websphere</module>
+        <module>roro-mw-asmt-webtob</module>
+        <module>roro-mw-asmt-jboss</module>
+        <module>roro-mw-asmt-nginx</module>
+        <!--<module>roro-mw-asmt-jboss</module>-->
+    </modules>
+
+</project>

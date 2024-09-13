@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.common.code.CodeDomainMapper">
+    <resultMap id="codeDomain" type="io.playce.roro.common.dto.common.code.CodeDomain" autoMapping="true">
+        <id property="domainCode" column="domain_code" javaType="Long"/>
+        <collection property="codeDetails" ofType="io.playce.roro.common.dto.common.code.CodeDetail" autoMapping="true">
+            <id property="domainCode" column="domain_code" javaType="Long"/>
+            <id property="commonCode" column="common_code" javaType="String"/>
+        </collection>
+    </resultMap>
+    <select id="selectCodeDomains" resultMap="codeDomain">
+        select
+               /*cd.domain_name_korean,
+               cd.domain_name_english,
+               cd.domain_description_korean,
+               cd.domain_description_english,*/
+               cdtl.domain_code,
+               cdtl.common_code,
+               cdtl.code_name_korean,
+               cdtl.code_name_english,
+               /*cdtl.code_abbreviation_korean,
+               cdtl.code_abbreviation_english,
+               cdtl.code_description_korean,
+               cdtl.code_description_english,*/
+               cdtl.code_display_number,
+               cdrd.reference_domain_code,
+               cdrd.reference_common_code
+          from code_domain cd
+          join code_detail cdtl
+            on cd.domain_code = cdtl.domain_code
+           and cd.domain_valid_yn = 'Y'
+           and cdtl.code_valid_yn = 'Y'
+          left join code_domain_reference_detail cdrd
+            on cdrd.domain_code = cd.domain_code
+           and cdrd.common_code = cdtl.common_code
+
+        <if test="keyword != null">
+         where cd.domain_name_korean like concat('%', #{keyword}, '%')
+            or cd.domain_name_english like concat('%', #{keyword}, '%')
+        </if>
+         order by cdtl.domain_code, cdtl.code_display_number
+    </select>
+
+</mapper>

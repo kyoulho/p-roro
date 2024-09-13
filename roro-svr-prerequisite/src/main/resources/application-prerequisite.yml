@@ -1,0 +1,125 @@
+prerequisite:
+  id-like-map:
+    common: common
+    centos: rhel fedora
+    ubuntu: debian
+  softwares:
+    - name: common
+      type: Linux
+      commands:
+        - uniq
+        - tail
+        - vmstat
+        - which
+        - lscpu
+        - ulimit
+        - egrep
+        - cut
+        - ip
+        - ps
+        - sysctl
+        - dmidecode
+        - timedatectl
+        - netstat
+        - iptables
+        - locale
+        - vgs
+        - lvdisplay
+        - pvdisplay
+        - head
+        - awk
+        - tr
+        - uptime
+        - pvs
+        - rsync
+    - name: 'rhel fedora'
+      type: Linux
+      commands:
+        - rpm
+        - yum
+    - name: debian
+      type: Linux
+      commands:
+        - dpkg
+        - apt
+    - name: aix
+      type: AIX
+      commands:
+        - /usr/bin/oslevel
+        - /usr/bin/hostname
+        - /usr/sbin/lsdev
+        - /usr/sbin/lsattr
+        - /usr/bin/vmstat
+        - /usr/sbin/lsps
+        - lslpp
+        - getconf
+        - /usr/sbin/lsconf
+        - /usr/sbin/lsvg
+        - /usr/bin/xargs
+        - egrep
+        - sed
+        - tr
+        - /etc/ifconfig
+        - /usr/bin/ps
+        - /usr/bin/env
+        - /usr/bin/netstat
+        - /usr/sbin/rmsock
+        - locale
+        - /usr/bin/lssrc
+        - uptime
+        - entstat
+
+    - name: hp
+      type: HP-UX
+      commands:
+        - /usr/sbin/swlist
+        - /usr/bin/hostname
+        - /usr/contrib/bin/machinfo
+        - ioscan
+        - /usr/sbin/psrset
+        - /usr/bin/vmstat
+        - /usr/sbin/swapinfo
+        - egrep
+        - getconf
+        - bdf
+        - fstyp
+        - /usr/sbin/lsvg
+        - /usr/bin/xargs
+        - /usr/bin/netstat
+        - /usr/bin/ps
+        - kctune
+        - /usr/local/bin/lsof
+        - pfiles
+        - locale
+        - vgdisplay
+        - /usr/bin/lssrc
+        - uptime
+        - lanscan
+        - entstat
+
+    - name: solaris
+      type: SunOS
+      commands:
+        - psrinfo
+        - kstat
+        - pagesize
+        - swap
+        - pvs
+        - egrep
+        - cut
+        - ip
+        - ifconfig
+        - ps
+        - prctl
+        - smbios
+        - nlsadm
+        - netstat
+        - ptree
+        - pfiles
+        - iptables
+        - locale
+        - vgs
+        - lvdisplay
+        - pvdisplay
+        - svcs
+        - uptime

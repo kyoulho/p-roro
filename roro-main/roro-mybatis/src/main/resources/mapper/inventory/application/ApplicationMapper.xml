@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.application.ApplicationMapper">
+    <select id="getApplications" resultType="io.playce.roro.common.dto.inventory.application.ApplicationResponse">
+        SELECT i.project_id
+        , a.application_inventory_id
+        , i.inventory_name
+        , i.customer_inventory_code
+        , i.customer_inventory_name
+        , i.inventory_name as application_inventory_name
+        , i.inventory_type_code
+        , i.inventory_detail_type_code
+        , i.inventory_ip_type_code
+        , i.server_inventory_id
+        , a.deploy_path
+        , a.source_location_uri
+        , a.upload_source_file_name
+        , a.upload_source_file_path
+        , a.application_size
+        , a.analysis_lib_list
+        , a.analysis_string_list
+        , i.automatic_regist_yn
+        , a.automatic_regist_protection_yn
+        , a.dedicated_authentication_yn
+        , cm.credential_id
+        , cm.user_name
+        , cm.user_password
+        , cm.key_file_name
+        , cm.key_file_path
+        , cm.key_file_content
+        , i.description AS note
+        , i.regist_datetime
+        , i.regist_user_id
+        , re.user_login_id as regist_user_login_id
+        , i.modify_datetime
+        , i.modify_user_id
+        , mo.user_login_id as modify_user_login_id
+        , i.description
+        FROM application_master a LEFT JOIN inventory_master i
+        ON a.application_inventory_id = i.inventory_id LEFT JOIN service_inventory s
+        ON i.inventory_id = s.inventory_id LEFT JOIN credential_master cm
+        ON i.credential_id = cm.credential_id INNER JOIN user_access re
+        ON i.regist_user_id = re.USER_ID INNER JOIN user_access mo
+        ON i.modify_user_id = mo.USER_ID
+        WHERE i.delete_yn = 'N'
+        AND i.project_id = #{projectId}
+        <if test="serviceId != null">
+            AND s.service_id = #{serviceId}
+        </if>
+        <if test="serverId != null">
+            AND i.server_inventory_id = #{serverId}
+        </if>
+        GROUP BY a.application_inventory_id
+        ORDER BY a.application_inventory_id desc
+    </select>
+
+    <select id="getApplication" resultType="io.playce.roro.common.dto.inventory.application.ApplicationDetailResponse">
+        SELECT i.project_id
+             , a.application_inventory_id
+             , i.inventory_name as application_inventory_name
+             , i.customer_inventory_code
+             , i.customer_inventory_name
+             , i.inventory_type_code
+             , i.inventory_detail_type_code
+             , i.inventory_ip_type_code
+             , i.server_inventory_id
+             , a.deploy_path
+             , a.source_location_uri
+             , a.upload_source_file_name
+             , a.upload_source_file_path
+             , a.application_size
+             , a.analysis_lib_list
+             , a.analysis_string_list
+             , i.automatic_regist_yn
+             , a.automatic_regist_protection_yn
+             , a.dedicated_authentication_yn
+             , a.java_version
+             , a.java_vendor
+             , cm.credential_id
+             , cm.user_name
+             , cm.user_password
+             , cm.key_file_name
+             , cm.key_file_path
+             , cm.key_file_content
+             , i.description
+             , i.regist_datetime
+             , i.regist_user_id
+             , re.user_login_id as regist_user_login_id
+             , i.modify_datetime
+             , i.modify_user_id
+             , mo.user_login_id as modify_user_login_id
+        FROM application_master a
+                 LEFT JOIN inventory_master i
+                           ON a.application_inventory_id = i.inventory_id
+                 LEFT JOIN credential_master cm
+                           ON i.credential_id = cm.credential_id
+                 INNER JOIN user_access re
+                            ON i.regist_user_id = re.USER_ID
+                 INNER JOIN user_access mo
+                            ON i.modify_user_id = mo.USER_ID
+        WHERE i.delete_yn = 'N'
+          AND i.project_id = #{projectId}
+          AND a.application_inventory_id = #{applicationInventoryId}
+    </select>
+
+    <select id="selectApplicationDatasource" resultType="Map">
+        select aim.project_id,
+               aim.inventory_id                              as application_inventory_id,
+               dii.discovered_instance_interface_id,
+               dii.discovered_instance_interface_detail_type_code,
+               dii.descriptors_name,
+               dii.full_descriptors,
+               (select di.jdbc_url
+                from discovered_instance_master dim2
+                         inner join database_instance di on dim2.discovered_instance_id = di.database_instance_id
+                where dim2.delete_yn = 'N'
+                  and dim2.project_id = aim.project_id
+                  and di.database_service_name = dii.descriptors_name
+                  and dii.full_descriptors like concat('%', di.jdbc_url, '%')
+                limit 1)                                     as jdbc_url,
+               diii.discovered_instance_interface_ip_address as server_ip,
+               diii.service_name,
+               (select di.user_name
+                from discovered_instance_master dim2
+                         inner join database_instance di on dim2.discovered_instance_id = di.database_instance_id
+                where dim2.delete_yn = 'N'
+                  and dim2.project_id = aim.project_id
+                  and di.database_service_name = dii.descriptors_name
+                  and dii.full_descriptors like concat('%', di.jdbc_url, '%')
+                limit 1)                                     as user_name
+        from inventory_master aim
+                 inner join application_master am on am.application_inventory_id = aim.inventory_id
+                 inner join discovered_instance_master dim on (dim.possession_inventory_id = aim.inventory_id or
+                                                               dim.finder_inventory_id = aim.inventory_id)
+                 inner join discovered_instance_interface dii
+                            on dii.discovered_instance_interface_id = dim.discovered_instance_id
+                 left join discovered_instance_interface_ips diii
+                           on diii.discovered_instance_interface_id = dii.discovered_instance_interface_id
+                               and diii.discovered_instance_interface_seq = dii.discovered_instance_interface_seq
+        where aim.project_id = #{projectId}
+          and aim.inventory_id = #{applicationInventoryId}
+    </select>
+
+    <select id="selectApplicationDatabaseInstance" resultType="Map">
+        SELECT si.project_id,
+               di.database_inventory_id,
+               dbi.database_instance_id,
+               di.database_inventory_name,
+               di.inventory_detail_type_code,
+               di.database_service_name,
+               di.connection_port,
+               dbi.user_name
+        FROM (
+                 -- Server Iventory Information
+                 SELECT sim.project_id,
+                        sm.server_inventory_id,
+                        sim.inventory_name           AS server_inventory_name,
+                        sm.representative_ip_address AS server_ip
+                 FROM INVENTORY_MASTER sim
+                          INNER JOIN SERVER_MASTER sm
+                                     ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code = 'SVR' AND
+                                        sim.delete_yn = 'N') si
+                 INNER JOIN (
+            -- Database Inventory Information
+            SELECT dim.project_id,
+                   dm.database_inventory_id,
+                   dm.database_service_name,
+                   dim.server_inventory_id,
+                   dim.inventory_detail_type_code,
+                   dim.inventory_name AS database_inventory_name,
+                   dm.connection_port
+            FROM INVENTORY_MASTER dim
+                     INNER JOIN DATABASE_MASTER dm
+                                ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code = 'DBMS' AND
+                                   dim.delete_yn = 'N') di
+                            ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+                 LEFT JOIN discovered_instance_master dim
+                           ON dim.possession_inventory_id = di.database_inventory_id AND dim.delete_yn = 'N'
+                 LEFT JOIN database_instance dbi ON dbi.database_instance_id = dim.discovered_instance_id
+        WHERE si.project_id = #{projectId}
+          AND si.server_ip = #{serverIp}
+          AND di.database_service_name = #{databaseServiceName}
+        LIMIT 1
+    </select>
+
+    <select id="selectApplicationExcel"
+            resultType="io.playce.roro.common.dto.inventory.application.ApplicationExcelResponse">
+        SELECT i.project_id
+        , pm.project_name
+        , i.customer_inventory_code
+        , i.customer_inventory_name
+        , sm.service_id
+        , sm.service_name
+        , i.server_inventory_id
+        , sim.inventory_name as server_inventory_name
+        , i.inventory_id as application_inventory_id
+        , i.inventory_name as application_inventory_name
+        , i.inventory_detail_type_code
+        , a.deploy_path
+        , a.application_size
+        , a.source_location_uri
+        , a.upload_source_file_name
+        , a.upload_source_file_path
+        , a.analysis_lib_list
+        , a.analysis_string_list
+        , i.automatic_regist_yn
+        , a.automatic_regist_protection_yn
+        , a.dedicated_authentication_yn
+        , cm.credential_id
+        , cm.user_name
+        , cm.user_password
+        , cm.key_file_name
+        , cm.key_file_path
+        , cm.key_file_content
+        , i.description
+        , tl.labels
+        FROM application_master a LEFT JOIN inventory_master i
+        ON a.application_inventory_id = i.inventory_id INNER JOIN project_master pm
+        ON i.project_id = pm.project_id INNER JOIN inventory_master sim
+        ON i.server_inventory_id = sim.inventory_id LEFT JOIN service_inventory s
+        ON i.inventory_id = s.inventory_id LEFT JOIN credential_master cm
+        ON i.credential_id = cm.credential_id LEFT JOIN service_master sm
+        ON s.service_id = sm.service_id
+        LEFT JOIN (
+        SELECT lm.label_id, group_concat(lm.label_name SEPARATOR ',') as labels, il.inventory_id
+        FROM inventory_label il inner join label_master lm on il.label_id = lm.label_id
+        GROUP BY inventory_id
+        ) as tl ON tl.inventory_id = i.inventory_id
+        WHERE i.delete_yn = 'N'
+        AND i.project_id = #{projectId}
+        <if test="serviceId != null">
+            AND s.service_id = #{serviceId}
+        </if>
+        <if test="serverId != null">
+            AND i.server_inventory_id = #{serverId}
+        </if>
+    </select>
+
+    <select id="selectApplicationMiddlewareInstance"
+            resultType="io.playce.roro.common.dto.inventory.middleware.InstanceResponse">
+        SELECT dim.possession_inventory_id as middleware_inventory_id,
+               mi.middleware_instance_id,
+               dim.project_id,
+               mi.middleware_instance_path,
+               mi.middleware_instance_name,
+               mi.middleware_config_path,
+               mi.middleware_profile_name,
+               mi.middleware_cell_name,
+               mi.middleware_node_name,
+               mi.middleware_server_name,
+               mi.running_user,
+               mi.java_version,
+               mi.regist_datetime,
+               mi.regist_user_id,
+               dim.inventory_process_id,
+               mip.middleware_instance_service_port,
+               CASE
+                   WHEN (mi.running_user is null or mi.running_user = '') THEN 'N'
+                   ELSE 'Y'
+                   END                     as activeYn
+        FROM DISCOVERED_INSTANCE_MASTER dim
+                 INNER JOIN MIDDLEWARE_INSTANCE mi
+                            ON dim.discovered_instance_id = mi.middleware_instance_id AND dim.delete_yn = 'N'
+                 LEFT JOIN (
+            -- middleware instance protocol 테이블 조회
+            SELECT mip.middleware_instance_id,
+                   GROUP_CONCAT(mip.middleware_instance_service_port SEPARATOR ',') AS middleware_instance_service_port
+            FROM middleware_instance_protocol mip
+            GROUP BY mip.middleware_instance_id) AS mip on mip.middleware_instance_id = mi.middleware_instance_id
+        WHERE mi.middleware_instance_id IN
+              (
+                  -- application 조회
+                  SELECT miai.middleware_instance_id
+                  FROM DISCOVERED_INSTANCE_MASTER dim
+                           LEFT JOIN MIDDLEWARE_INSTANCE_APPLICATION_INSTANCE miai
+                                     ON dim.discovered_instance_id = miai.application_instance_id
+                  WHERE dim.project_id = #{projectId}
+                    AND dim.possession_inventory_id = #{applicationId})
+    </select>
+
+    <resultMap id="LastInventoryApplication"
+               type="io.playce.roro.common.dto.inventory.application.LastInventoryApplication" autoMapping="true">
+        <result property="deleteYn" column="delete_yn" typeHandler="io.playce.roro.mybatis.handler.YNTypeHandler"/>
+        <result property="automaticRegistProtectionYn" column="automatic_regist_protection_yn"
+                typeHandler="io.playce.roro.mybatis.handler.YNTypeHandler"/>
+    </resultMap>
+    <select id="selectInventoryApplication" resultMap="LastInventoryApplication">
+        select im.inventory_id
+             , im.delete_yn
+             , am.automatic_regist_protection_yn
+        from application_master am
+                 join inventory_master im
+                      on im.inventory_id = am.application_inventory_id
+        where im.project_id = #{projectId}
+          and im.server_inventory_id = #{serverInventoryId}
+          and am.deploy_path = #{deployPath}
+        order by im.inventory_id desc
+        limit 1
+    </select>
+
+    <select id="selectDuplicatedApplication" resultType="Long">
+        select am.application_inventory_id
+        from inventory_master im
+                 inner join application_master am
+                            on im.inventory_id = am.application_inventory_id
+        where im.delete_yn = 'N'
+          and im.project_id = #{projectId}
+          and im.server_inventory_id = #{serverInventoryId}
+          and am.deploy_path = #{deployPath}
+    </select>
+
+    <select id="selectMiddlewareInstanceProtocolHttpsYN" resultType="string">
+        SELECT IF(PROTOCOL like 'HTTPS%', 'Y', 'N')
+        FROM discovered_instance_master dim
+                 JOIN middleware_instance_protocol mip ON MIDDLEWARE_INSTANCE_ID = DISCOVERED_INSTANCE_ID
+        WHERE POSSESSION_INVENTORY_ID = (SELECT FINDER_INVENTORY_ID -- middleware instance ID
+                                         FROM discovered_instance_master
+                                         WHERE POSSESSION_INVENTORY_ID = #{applicationInventoryId}
+                                           AND INVENTORY_TYPE_CODE = 'APP')
+        GROUP BY FINDER_INVENTORY_ID
+    </select>
+
+    <select id="selectApplicationJavaInfo" resultType="Map">
+        SELECT java_version AS javaVersion,
+               java_vendor  AS javaVendor
+        FROM middleware_master mm
+        WHERE mm.middleware_inventory_id = (SELECT dim.possession_inventory_id as middleware_inventory_id
+                                            FROM DISCOVERED_INSTANCE_MASTER dim
+                                                     INNER JOIN MIDDLEWARE_INSTANCE mi
+                                                                ON dim.discovered_instance_id =
+                                                                   mi.middleware_instance_id AND dim.delete_yn = 'N'
+                                            WHERE mi.middleware_instance_id IN (
+                                                -- application 조회
+                                                SELECT miai.middleware_instance_id
+                                                FROM DISCOVERED_INSTANCE_MASTER dim
+                                                         LEFT JOIN MIDDLEWARE_INSTANCE_APPLICATION_INSTANCE miai
+                                                                   ON dim.discovered_instance_id = miai.application_instance_id
+                                                WHERE dim.project_id = #{projectId}
+                                                  AND dim.possession_inventory_id = #{applicationId})
+                                            LIMIT 1)
+    </select>
+    <select id="selectExternalConnections"
+            resultType="io.playce.roro.common.dto.inventory.application.ApplicationExternalConnectionResponse">
+        SELECT EXTERNAL_CONNECTION_ID,
+               FILE_NAME,
+               LINE_NUM,
+               IP,
+               PORT,
+               PROTOCOL
+        FROM external_connection ec
+                 JOIN inventory_master im ON ec.APPLICATION_INVENTORY_ID = im.INVENTORY_ID
+        WHERE im.PROJECT_ID = #{projectId}
+          AND ec.APPLICATION_INVENTORY_ID = #{applicationId}
+    </select>
+</mapper>

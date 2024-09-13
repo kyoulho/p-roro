@@ -1,0 +1,448 @@
+[
+  {
+    "thirdPartySolutionId": 36,
+    "thirdPartySolutionName": "WebSphere_javaext",
+    "vendor": "IBM",
+    "description": "websphere",
+    "registUserId": "admin",
+    "registDatetime": 1667437143000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 433,
+            "searchValue": "iwsorbutil.jar",
+            "inventoryTypeCode": "MW",
+            "windowsYn": "N"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 27,
+    "thirdPartySolutionName": "Create Discovery Rule edit",
+    "vendor": "Create Discovery Rule",
+    "description": "Create Discovery Rule",
+    "registUserId": "admin",
+    "registDatetime": 1667362571000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 420,
+            "searchValue": "Create Discovery Rule",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "CMD",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 422,
+            "searchValue": "Create Discovery Rule",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 423,
+            "searchValue": "",
+            "inventoryTypeCode": "MW",
+            "windowsYn": "Y"
+          }
+        ]
+      },
+      {
+        "searchType": "PKG",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 421,
+            "searchValue": "Create Discovery Rule",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 26,
+    "thirdPartySolutionName": "tests",
+    "vendor": "",
+    "description": "",
+    "registUserId": "admin",
+    "registDatetime": 1667362467000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 392,
+            "searchValue": "test",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 14,
+    "thirdPartySolutionName": "testtest",
+    "vendor": "test",
+    "description": "",
+    "registUserId": "admin",
+    "registDatetime": 1666007519000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 112,
+            "searchValue": "",
+            "inventoryTypeCode": "SVR",
+            "windowsYn": "N"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 13,
+    "thirdPartySolutionName": "test",
+    "vendor": "test",
+    "description": "",
+    "registUserId": "admin",
+    "registDatetime": 1665731887000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 38,
+            "searchValue": "test",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 39,
+            "searchValue": "test",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 11,
+    "thirdPartySolutionName": "kibana",
+    "vendor": "kibana",
+    "description": "kibana",
+    "registUserId": "admin",
+    "registDatetime": 1665016763000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PORT",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 376,
+            "searchValue": "5601",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 371,
+            "searchValue": "node,kibana",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 372,
+            "searchValue": "",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "CMD",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 374,
+            "searchValue": "/usr/share/kibana/bin/kibana",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 375,
+            "searchValue": "/etc/kibana/kibana.yml",
+            "inventoryTypeCode": "SVR",
+            "windowsYn": "N"
+          }
+        ]
+      },
+      {
+        "searchType": "PKG",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 373,
+            "searchValue": "kibana",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 10,
+    "thirdPartySolutionName": "elasticsearch",
+    "vendor": "elasticsearch",
+    "description": "elasticsearch",
+    "registUserId": "admin",
+    "registDatetime": 1665016763000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PORT",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 369,
+            "searchValue": "9200",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 370,
+            "searchValue": "9300",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 359,
+            "searchValue": "java,elasticsearch",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 360,
+            "searchValue": "egeg",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 361,
+            "searchValue": "asegsaeg",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 362,
+            "searchValue": "egesagasegseggwwefwef",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 363,
+            "searchValue": "saegseg",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 364,
+            "searchValue": "segesgse",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 365,
+            "searchValue": "eagesg",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "CMD",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 367,
+            "searchValue": "/usr/share/elasticsearch/bin/elasticsearch",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 368,
+            "searchValue": "/etc/elasticsearch/elasticsearch.yml",
+            "inventoryTypeCode": "SVR",
+            "windowsYn": "N"
+          }
+        ]
+      },
+      {
+        "searchType": "PKG",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 366,
+            "searchValue": "elasticsearch",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 8,
+    "thirdPartySolutionName": "Oracle",
+    "vendor": "Oracle",
+    "description": "Database",
+    "registUserId": "admin",
+    "registDatetime": 1665019334000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "CMD",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 19,
+            "searchValue": "sqlplus",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 6,
+    "thirdPartySolutionName": "SQL Server",
+    "vendor": "Microsoft",
+    "description": "Database",
+    "registUserId": "admin",
+    "registDatetime": 1665018707000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PKG",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 17,
+            "searchValue": "SQL Server",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 2,
+    "thirdPartySolutionName": "Tomcat",
+    "vendor": "Tomcat",
+    "description": "WAS",
+    "registUserId": "admin",
+    "registDatetime": 1663831019000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PORT",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 14,
+            "searchValue": "8080",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          },
+          {
+            "thirdPartySearchTypeId": 21,
+            "searchValue": "8081",
+            "inventoryTypeCode": null,
+            "windowsYn": null
+          }
+        ]
+      },
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 3,
+            "searchValue": "java,catalina",
+            "inventoryTypeCode": null,
+            "windowsYn": "N"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionId": 1,
+    "thirdPartySolutionName": "Apache1",
+    "vendor": "Apache Foundation1",
+    "description": "Middleware1",
+    "registUserId": "admin",
+    "registDatetime": 1663830923000,
+    "thirdPartySearchTypes": [
+      {
+        "searchType": "PROCESS",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 1,
+            "searchValue": "tomcat8",
+            "inventoryTypeCode": null,
+            "windowsYn": "N"
+          }
+        ]
+      },
+      {
+        "searchType": "FILE",
+        "values": [
+          {
+            "thirdPartySearchTypeId": 2,
+            "searchValue": "server.xml",
+            "inventoryTypeCode": "MW",
+            "windowsYn": "N"
+          },
+          {
+            "thirdPartySearchTypeId": 7,
+            "searchValue": "httpd.conf",
+            "inventoryTypeCode": "MW",
+            "windowsYn": "N"
+          },
+          {
+            "thirdPartySearchTypeId": 8,
+            "searchValue": "context.xml",
+            "inventoryTypeCode": "MW",
+            "windowsYn": "N"
+          }
+        ]
+      }
+    ]
+  }
+]

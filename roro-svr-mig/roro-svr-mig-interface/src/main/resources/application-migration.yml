@@ -1,0 +1,9 @@
+# Cron Expression for Migration
+roro:
+  migration:
+    dir:
+      remove: true
+    bucket:
+      name: roro-bucket-dev
+      region: ap-northeast-2
+      remove: true

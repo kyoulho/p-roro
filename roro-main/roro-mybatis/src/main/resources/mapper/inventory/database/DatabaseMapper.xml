@@ -1,0 +1,732 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.database.DatabaseMapper">
+
+    <select id="selectDatabaseEngineList" resultType="io.playce.roro.common.dto.inventory.database.DatabaseEngineListResponseDto">
+        SELECT
+            si.project_id,
+            di.database_inventory_id,
+            di.database_inventory_name,
+            si.server_inventory_id,
+            si.server_inventory_name,
+            si.server_ip,
+--             sm.service_name,
+            di.inventory_detail_type_code,
+            IFNULL(ddi.instance_count, 0) AS instance_count,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt,
+--             ls.inventory_process_id AS last_success_inventory_process_id,
+--             ls.inventory_process_result_excel_path AS last_success_inventory_process_result_excel_path,
+--             ls.inventory_process_result_json_path AS last_success_inventory_process_result_json_path,
+            di.discovered_database_yn,
+            di.regist_user_id,
+            di.regist_datetime,
+            di.modify_user_id,
+            di.modify_datetime
+        FROM
+            (
+            -- Server Iventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sim.inventory_name AS server_inventory_name,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                    ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+            INNER JOIN (
+                -- Database Inventory Information
+                SELECT
+                    dim.project_id,
+                    dm.database_inventory_id,
+                    dim.server_inventory_id,
+                    dim.inventory_name AS database_inventory_name,
+                    dim.inventory_detail_type_code,
+                    dm.discovered_database_yn,
+                    dim.regist_user_id,
+                    dim.regist_datetime,
+                    dim.modify_user_id,
+                    dim.modify_datetime
+                FROM
+                    INVENTORY_MASTER dim
+                    INNER JOIN DATABASE_MASTER dm
+                        ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+            INNER JOIN (
+                -- Service Information
+                SELECT
+                    si.inventory_id
+                    , sm.service_id
+                    , GROUP_CONCAT(sm.service_name) AS service_name
+                FROM
+                    SERVICE_MASTER sm
+                    INNER JOIN SERVICE_INVENTORY si ON sm.service_id = si.service_id AND sm.delete_yn = 'N'
+                <if test="serviceId != null">
+                WHERE
+                    sm.service_id = #{serviceId}
+                </if>
+                GROUP BY
+                    inventory_id
+                ) sm ON sm.inventory_id = di.database_inventory_id
+            LEFT JOIN (
+                -- Instace Count
+                SELECT
+                    possession_inventory_id
+                    , COUNT(*) AS instance_count
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                    INNER JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+                WHERE
+                    inventory_type_code = 'DBMS'
+                    AND delete_yn = 'N'
+                GROUP BY
+                    possession_inventory_id
+            ) ddi ON ddi.possession_inventory_id = di.database_inventory_id
+            LEFT JOIN (
+                <![CDATA[
+                -- Last Assessment Status
+                SELECT
+                    ipa.inventory_process_id
+                    , ipa.inventory_id
+                    , ipa.inventory_process_result_code
+                    , ipa.inventory_process_result_txt
+                FROM
+                    INVENTORY_PROCESS ipa
+                    LEFT JOIN INVENTORY_PROCESS ipb
+                        ON ipa.inventory_id = ipb.inventory_id AND ipa.inventory_process_id < ipb.inventory_process_id
+                WHERE
+                    ipa.delete_yn = 'N'
+                    AND ipa.inventory_process_type_code = 'SCAN'
+                    AND ipb.inventory_process_id IS NULL
+                ]]>
+            ) ip ON ip.inventory_id = di.database_inventory_id
+            LEFT JOIN (
+                <![CDATA[
+                -- Last Success Assessment Status 사용안함(X) 기록용으로 나둠.
+                SELECT
+                    ipa.inventory_id,
+                    ipa.inventory_process_id,
+                    ipr.inventory_process_result_json,
+                    ipr.inventory_process_result_json_path,
+                    ipr.inventory_process_result_excel_path
+                FROM
+                    INVENTORY_PROCESS ipa
+                    LEFT JOIN INVENTORY_PROCESS ipb
+                        ON ipa.inventory_id = ipb.inventory_id AND ipa.inventory_process_id < ipb.inventory_process_id
+                    INNER JOIN INVENTORY_PROCESS_RESULT ipr
+                        ON ipr.inventory_process_id = ipa.inventory_process_id
+                WHERE
+                    ipa.delete_yn = 'N'
+                    AND ipa.inventory_process_type_code = 'SCAN'
+                    AND ipa.inventory_process_result_code = 'CMPL'
+                    AND ipb.inventory_process_id IS NULL
+                ]]>
+            ) ls ON ls.inventory_id = di.database_inventory_id
+        WHERE
+            si.project_id = #{projectId}
+            <if test="serverId != null">
+                AND si.server_inventory_id = #{serverId}
+            </if>
+        ORDER BY
+            database_inventory_id DESC
+    </select>
+
+    <select id="selectDatabaseInstanceList" resultType="io.playce.roro.common.dto.inventory.database.DatabaseInstanceListResponseDto">
+        SELECT
+            dim.discovered_instance_id AS database_instance_id,
+            di.database_service_name,
+            di.table_count,
+            di.view_count,
+            di.function_count,
+            di.procedure_count,
+            CASE
+                WHEN tmp.MAX_INVENTORY_PROCESS_ID IS NULL THEN 'N'
+                ELSE 'Y'
+            END as active_yn
+        FROM
+            DISCOVERED_INSTANCE_MASTER dim
+            INNER JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+            LEFT JOIN (
+                SELECT
+                    MAX(dim.INVENTORY_PROCESS_ID) AS max_inventory_process_id
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                WHERE
+                    inventory_type_code = 'DBMS'
+                  AND delete_yn = 'N'
+                  AND dim.project_id = #{projectId}
+                  AND dim.possession_inventory_id  = #{databaseInventoryId}
+                GROUP BY
+                    inventory_process_id
+            ) tmp ON max_inventory_process_id = dim.inventory_process_id
+        WHERE
+            inventory_type_code = 'DBMS'
+            AND delete_yn = 'N'
+            AND dim.project_id = #{projectId}
+            AND dim.possession_inventory_id  = #{databaseInventoryId}
+    </select>
+
+    <select id = "selectDatabaseEngine" resultType="io.playce.roro.common.dto.inventory.database.DatabaseEngineResponseDto">
+        SELECT
+            di.database_inventory_id,
+            di.database_inventory_name,
+            di.customer_inventory_code,
+            di.customer_inventory_name,
+            si.server_inventory_id,
+            si.server_inventory_name,
+            si.server_ip,
+            di.vendor,
+            di.inventory_detail_type_code,
+            di.engine_version,
+            di.connection_port,
+            di.database_service_name,
+            di.jdbc_url,
+            di.all_scan_yn,
+            cm.user_name,
+            di.database_access_control_system_solution_name,
+            di.discovered_database_yn,
+            di.inventory_discovered_datetime,
+            ua1.user_login_id AS regist_user_login_id,
+            di.regist_datetime,
+            ua2.user_login_id AS modify_user_login_id,
+            di.modify_datetime,
+            IFNULL(ddi.instance_count, 0) AS instance_count,
+            di.description
+        FROM
+            (
+            -- Server Iventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sim.inventory_name AS server_inventory_name,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                    ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+            INNER JOIN (
+                -- Database Inventory Information
+                SELECT
+                    dim.project_id,
+                    dm.database_inventory_id,
+                    dim.server_inventory_id,
+                    dim.credential_id,
+                    dim.inventory_name AS database_inventory_name,
+                    dim.inventory_detail_type_code,
+                    dim.customer_inventory_code,
+                    dim.customer_inventory_name,
+                    dm.discovered_database_yn,
+                    dim.inventory_discovered_datetime,
+                    dim.description,
+                    dm.vendor,
+                    dm.engine_version,
+                    dm.connection_port,
+                    dm.database_service_name,
+                    dm.jdbc_url,
+                    dm.all_scan_yn,
+                    dm.database_access_control_system_solution_name,
+                    dim.regist_user_id,
+                    dim.regist_datetime,
+                    dim.modify_user_id,
+                    dim.modify_datetime
+                FROM
+                    INVENTORY_MASTER dim
+                    INNER JOIN DATABASE_MASTER dm
+                        ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+            INNER JOIN (
+                SELECT
+                    credential_id,
+                    user_name
+                FROM
+                    credential_master
+            ) cm ON cm.credential_id = di.credential_id
+            LEFT JOIN (
+                -- Instace Count
+                SELECT
+                    possession_inventory_id,
+                    COUNT(*) AS instance_count
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                    INNER JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+                WHERE
+                    inventory_type_code = 'DBMS'
+                    AND delete_yn = 'N'
+                GROUP BY
+                    possession_inventory_id
+            ) ddi ON ddi.possession_inventory_id = di.database_inventory_id
+            INNER JOIN user_access ua1
+                ON ua1.user_id = di.regist_user_id
+            inner join user_access ua2
+                ON ua2.user_id = di.modify_user_id
+        WHERE
+            si.project_id = #{projectId}
+            AND di.database_inventory_id = #{databaseInventoryId}
+    </select>
+
+    <select id="selectDatabaseInstance" resultType="io.playce.roro.common.dto.inventory.database.DatabaseInstanceResponseDto">
+        SELECT
+            dii.database_service_name,
+            di.database_inventory_id,
+            di.database_inventory_name,
+            si.server_inventory_id,
+            si.server_inventory_name,
+            si.server_ip,
+            di.vendor,
+            di.inventory_detail_type_code,
+            dii.table_count,
+            dii.view_count,
+            dii.function_count,
+            dii.procedure_count,
+            dii.regist_datetime
+        FROM
+            (
+            -- Server Iventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sim.inventory_name AS server_inventory_name,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                   ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+            INNER JOIN (
+                -- Database Inventory Information
+                SELECT
+                    dim.project_id,
+                    dm.database_inventory_id,
+                    dim.server_inventory_id,
+                    dim.inventory_name AS database_inventory_name,
+                    dim.inventory_detail_type_code,
+                    dm.vendor
+                FROM
+                    INVENTORY_MASTER dim
+                    INNER JOIN DATABASE_MASTER dm
+                       ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+            INNER JOIN (
+                -- Datbase Instance Information
+                SELECT
+                    dim.discovered_instance_id AS database_instance_id,
+                    di.database_service_name,
+                    dim.project_id,
+                    dim.possession_inventory_id,
+                    dim.regist_datetime,
+                    di.table_count,
+                    di.view_count,
+                    di.function_count,
+                    di.procedure_count
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                    INNER JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+                WHERE
+                    inventory_type_code = 'DBMS'
+                    AND delete_yn = 'N'
+            ) dii ON dii.possession_inventory_id = di.database_inventory_id AND dii.project_id = si.project_id
+        WHERE
+            si.project_id = #{projectId}
+            AND di.database_inventory_id = #{databaseInventoryId}
+            AND dii.database_instance_id = #{databaseInstanceId}
+    </select>
+
+    <select id="selectDatabaseServerAndName" resultType="Map">
+        SELECT
+            si.server_ip,
+            dbi.database_service_name
+        FROM
+            (
+            -- Server Iventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sim.inventory_name AS server_inventory_name,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+            INNER JOIN (
+            -- Database Inventory Information
+            SELECT
+                dim.project_id,
+                dm.database_inventory_id,
+                dim.server_inventory_id
+            FROM
+                INVENTORY_MASTER dim
+                INNER JOIN DATABASE_MASTER dm
+                ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+            INNER JOIN discovered_instance_master dim ON dim.possession_inventory_id = di.database_inventory_id
+            INNER JOIN database_instance dbi ON dbi.database_instance_id = dim.discovered_instance_id
+        WHERE
+            si.project_id = #{projectId}
+          AND di.database_inventory_id = #{databaseInventoryId}
+          AND dim.discovered_instance_id = #{databaseInstanceId}
+          AND dim.delete_yn = 'N'
+    </select>
+
+    <select id="selectDatabaseInstanceMiddlewares" resultType="io.playce.roro.common.dto.inventory.database.DatabaseInstanceMiddlewareResponseDto">
+        SELECT
+            im.project_id,
+            im.inventory_id AS middleware_inventory_id,
+            mi.middleware_instance_id,
+            mi.middleware_instance_name,
+            mi.middleware_instance_path,
+            GROUP_CONCAT(DISTINCT mip.middleware_instance_service_port) AS middleware_instance_service_port,
+            mi.running_user,
+            CASE
+                WHEN
+                    dim.inventory_process_id = (SELECT inventory_process_id FROM inventory_process WHERE inventory_id = im.inventory_id ORDER BY inventory_process_id DESC limit 1) THEN 'Y'
+                ELSE 'N'
+            END as active_yn
+        FROM
+            INVENTORY_MASTER im
+            INNER JOIN DISCOVERED_INSTANCE_MASTER dim ON dim.possession_inventory_id = im.inventory_id
+            INNER JOIN DISCOVERED_INSTANCE_INTERFACE dii ON dii.discovered_instance_interface_id = dim.discovered_instance_id
+            INNER JOIN MIDDLEWARE_INSTANCE mi ON mi.middleware_instance_id = dim.discovered_instance_id
+            LEFT JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip ON mip.middleware_instance_id = mi.middleware_instance_id
+        WHERE
+            im.inventory_type_code ='MW'
+            AND im.delete_yn = 'N'
+            AND dim.delete_yn = 'N'
+            AND dii.discovered_instance_interface_detail_type_code IN ('JDBC', 'JNDI')
+            AND dii.full_descriptors LIKE CONCAT('%', #{serverIp}, '%')
+            AND dii.full_descriptors LIKE CONCAT('%', #{databaseServiceName}, '%')
+        GROUP BY
+            mi.middleware_instance_id
+    </select>
+
+    <select id="selectDatabaseInstanceApplications" resultType="io.playce.roro.common.dto.inventory.database.DatabaseInstanceApplicationResponseDto">
+        SELECT
+            im.project_id,
+            im.inventory_id AS application_inventory_id,
+            im.inventory_name AS application_name,
+            am.deploy_path,
+            miai.context_path,
+            miai.reloadable_yn,
+            miai.auto_deploy_yn
+        FROM
+            INVENTORY_MASTER im
+            INNER JOIN DISCOVERED_INSTANCE_MASTER dim ON dim.possession_inventory_id = im.inventory_id
+            INNER JOIN DISCOVERED_INSTANCE_INTERFACE dii ON dii.discovered_instance_interface_id = dim.discovered_instance_id
+            INNER JOIN MIDDLEWARE_INSTANCE_APPLICATION_INSTANCE miai ON miai.application_instance_id = dim.discovered_instance_id
+            INNER JOIN APPLICATION_MASTER am ON am.application_inventory_id = im.inventory_id
+        WHERE
+            im.inventory_type_code ='APP'
+            AND im.delete_yn = 'N'
+            AND dim.delete_yn = 'N'
+            AND dii.discovered_instance_interface_detail_type_code IN ('JDBC', 'JNDI')
+            AND dii.full_descriptors LIKE CONCAT('%', #{serverIp}, '%')
+            AND dii.full_descriptors LIKE CONCAT('%', #{databaseServiceName}, '%')
+    </select>
+
+    <select id="selectDatabaseCountByServiceNameAndJdbcUrlAndProjectId" resultType="int">
+        select count(*)
+        from inventory_master im
+            inner join database_master dm
+                on im.inventory_id = dm.database_inventory_id
+        where
+            im.project_id = #{projectId}
+            and im.delete_yn = 'N'
+            and dm.database_service_name = #{databaseServiceName}
+            and dm.jdbc_url = #{jdbcUrl}
+        <if test = "inventoryId != null">
+            <![CDATA[
+            and im.inventory_id <> #{inventoryId}
+            ]]>
+        </if>
+        <if test= "serverInventoryId != null">
+            and im.server_inventory_id = #{serverInventoryId}
+        </if>
+    </select>
+
+    <select id="selectDatabaseDtoInfo" resultType="io.playce.roro.common.dto.assessment.DatabaseDto">
+        SELECT
+             im.project_id,
+             dm.database_inventory_id AS database_id,
+             ip.inventory_process_id,
+             dm.database_service_name,
+             im.inventory_detail_type_code AS database_type,
+             dm.jdbc_url,
+             dm.all_scan_yn,
+             cm.user_name,
+             cm.user_password as password
+        FROM
+            inventory_process ip
+            JOIN inventory_master im
+                ON ip.inventory_id = im.inventory_id
+            JOIN database_master dm
+                ON dm.database_inventory_id = im.inventory_id
+            JOIN credential_master cm
+                ON cm.credential_id = im.credential_id
+        WHERE
+            inventory_process_id = #{inventoryProcessId}
+    </select>
+
+    <select id="selectDatabaseServerInfo" parameterType="io.playce.roro.common.dto.assessment.DatabaseDto" resultType="Map">
+        SELECT
+            si.server_ip,
+            di.database_inventory_id,
+            di.connection_port
+        FROM
+            (
+            -- Server Iventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                   ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+            INNER JOIN (
+                -- Database Inventory Information
+                SELECT
+                    dim.project_id,
+                    dm.database_inventory_id,
+                    dim.server_inventory_id,
+                    dm.connection_port
+                FROM
+                    INVENTORY_MASTER dim
+                    INNER JOIN DATABASE_MASTER dm
+                       ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+        WHERE
+            si.project_id = #{projectId}
+            AND database_inventory_id = #{databaseId}
+    </select>
+
+    <select id="selectDiscoveredInstanceId" parameterType="Map" resultType="Long">
+        SELECT
+            dim.discovered_instance_id
+        FROM
+            DISCOVERED_INSTANCE_MASTER dim
+            INNER JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+        WHERE
+            dim.project_id = #{projectId}
+            AND dim.inventory_type_code = 'DBMS'
+            AND dim.discovered_ip_address = #{discoveredIpAddress}
+            AND dim.discovered_detail_division = #{discoveredDetailDivision}
+    </select>
+
+    <select id="selectDuplicateDatabaseInventory" resultType="int">
+        SELECT
+            COUNT(*)
+        FROM
+            INVENTORY_MASTER im
+            JOIN DATABASE_MASTER dm on im.inventory_id = dm.database_inventory_id
+        WHERE
+            im.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND im.server_inventory_id = #{inventoryId}
+            AND dm.connection_port = #{port}
+
+    </select>
+
+    <select id="selectDatabaseExcel" resultType="io.playce.roro.common.dto.inventory.database.DatabaseExcelResponse">
+        SELECT
+            pm.project_id,
+            pm.project_name,
+            di.customer_inventory_code,
+            di.customer_inventory_name,
+            sm.service_id,
+            sm.service_name,
+            si.server_inventory_id,
+            si.server_inventory_name,
+            cm.user_name,
+            di.database_inventory_id,
+            di.database_inventory_name,
+            di.vendor,
+            di.inventory_detail_type_code,
+            di.engine_version,
+            di.connection_port,
+            di.database_service_name,
+            di.jdbc_url,
+            di.all_scan_yn,
+            di.access_control,
+            IFNULL(ddi.instance_count, 0) AS instance_count,
+            lt.labels,
+            di.description,
+            dd.database_instance_id,
+            dd.database_service_name as database_instance_name,
+            dd.user_name,
+            dd.table_count,
+            dd.view_count,
+            dd.function_count,
+            dd.procedure_count
+        FROM
+        (
+            -- Server Inventory Information
+            SELECT
+                sim.project_id,
+                sm.server_inventory_id,
+                sim.inventory_name AS server_inventory_name,
+                sm.representative_ip_address AS server_ip
+            FROM
+                INVENTORY_MASTER sim
+            INNER JOIN SERVER_MASTER sm
+                ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+        ) si
+        INNER JOIN (
+            -- Database Inventory Information
+            SELECT
+                dim.project_id,
+                dim.customer_inventory_code,
+                dim.customer_inventory_name,
+                dm.database_inventory_id,
+                dim.server_inventory_id,
+                dim.inventory_name AS database_inventory_name,
+                dim.inventory_detail_type_code,
+                dm.discovered_database_yn,
+                dim.regist_user_id,
+                dim.regist_datetime,
+                dim.modify_user_id,
+                dim.modify_datetime,
+                dm.vendor,
+                dm.engine_version,
+                dm.connection_port,
+                dm.database_service_name,
+                dm.jdbc_url,
+                dm.all_scan_yn,
+                dm.database_access_control_system_solution_name as access_control,
+                dim.description,
+                dim.credential_id
+            FROM
+                INVENTORY_MASTER dim
+            INNER JOIN DATABASE_MASTER dm
+                ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+        INNER JOIN (
+            -- Project Information
+            SELECT
+                pm.project_id,
+                pm.project_name
+            FROM PROJECT_MASTER pm
+        ) pm ON di.project_id = pm.project_id
+        INNER JOIN (
+            -- Credential Information
+            SELECT
+                credential_id,
+                user_name
+            FROM
+                credential_master
+        ) cm ON cm.credential_id = di.credential_id
+        LEFT JOIN (
+            -- Service Information
+            SELECT
+                si.inventory_id,
+                sm.service_id,
+                sm.service_name
+            FROM
+                SERVICE_MASTER sm
+            INNER JOIN SERVICE_INVENTORY si ON sm.service_id = si.service_id AND sm.delete_yn = 'N'
+            <if test="serviceId != null">
+                WHERE
+                sm.service_id = #{serviceId}
+            </if>
+        ) sm ON sm.inventory_id = di.database_inventory_id
+        LEFT JOIN (
+            -- Instace Count
+            SELECT
+                possession_inventory_id
+                , COUNT(*) AS instance_count
+            FROM
+                DISCOVERED_INSTANCE_MASTER dim
+            WHERE
+                inventory_type_code = 'DBMS'
+            AND delete_yn = 'N'
+            GROUP BY
+                possession_inventory_id
+        ) ddi ON ddi.possession_inventory_id = di.database_inventory_id
+        LEFT JOIN (
+            -- Database Instance Information
+            SELECT
+                dim.possession_inventory_id,
+                dim.discovered_instance_id as database_instance_id,
+                di.database_service_name,
+                di.user_name,
+                di.table_count,
+                di.view_count,
+                di.function_count,
+                di.procedure_count
+            FROM
+                DISCOVERED_INSTANCE_MASTER dim
+                INNER JOIN DATABASE_INSTANCE di
+                    ON dim.discovered_instance_id = di.database_instance_id
+        ) dd ON dd.possession_inventory_id = di.database_inventory_id
+        LEFT JOIN (
+            -- Label Information
+            SELECT
+                   lm.label_id,
+                   GROUP_CONCAT(lm.label_name separator ',') as labels,
+                   il.inventory_id
+            FROM inventory_label il
+                INNER JOIN label_master lm
+                    ON il.label_id = lm.label_id
+            GROUP BY inventory_id
+        ) lt ON lt.inventory_id = di.database_inventory_id
+        WHERE
+        si.project_id = #{projectId}
+        <if test="serverId != null">
+            AND si.server_inventory_id = #{serverId}
+        </if>
+
+    </select>
+
+    <update id="updateDiscoveredInstanceMaster" parameterType="Map">
+        UPDATE
+            DISCOVERED_INSTANCE_MASTER
+        SET
+            delete_yn = 'N',
+            inventory_process_id = #{inventoryProcessId}
+        WHERE
+            project_id = #{projectId}
+            AND discovered_instance_id = #{discoveredInstanceId}
+    </update>
+
+    <update id="updateDatabaseInstance" parameterType="Map">
+        UPDATE
+            DATABASE_INSTANCE
+        SET
+            user_name = #{userName},
+            table_count = #{tableCount},
+            view_count = #{viewCount},
+            function_count = #{functionCount},
+            procedure_count = #{procedureCount}
+        WHERE
+            database_instance_id = #{databaseInstanceId}
+    </update>
+
+    <select id="selectDiscoveredDatabaseInstance" resultType="Long">
+        SELECT
+            dim.discovered_instance_id
+        FROM
+            discovered_instance_master dim
+            LEFT JOIN DATABASE_INSTANCE di ON di.database_instance_id = dim.discovered_instance_id
+            LEFT JOIN INVENTORY_MASTER im ON dim.finder_inventory_id = im.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+        WHERE
+            dim.possession_inventory_id is null
+            AND dim.inventory_type_code = 'DBMS'
+            AND dim.inventory_regist_type_code = 'DISC'
+            AND dim.delete_yn = 'N'
+            AND dim.project_id = #{projectId}
+            AND dim.discovered_ip_address = (
+                SELECT
+                    sm.representative_ip_address
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.INVENTORY_ID
+                WHERE
+                    im.inventory_id = #{databaseRequest.serverInventoryId}
+            )
+            AND di.jdbc_url LIKE concat('%', #{databaseRequest.connectionPort}, '%')
+            AND di.database_service_name = #{databaseRequest.databaseServiceName}
+    </select>
+</mapper>

@@ -1,0 +1,6 @@
+# Database Configuration
+spring.datasource:
+  driver-class-name: org.mariadb.jdbc.Driver
+  url: jdbc:mariadb://localhost:3306/rorodb
+  username: playce
+  password: playce

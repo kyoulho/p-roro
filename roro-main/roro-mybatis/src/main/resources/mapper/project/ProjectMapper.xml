@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.project.ProjectMapper">
+    <select id="getProjects" resultType="io.playce.roro.common.dto.project.ProjectResponse">
+        SELECT p.project_id
+               , p.project_name
+               , p.description
+               , p.regist_datetime
+               , p.regist_user_id
+               , re.user_login_id as regist_user_login_id
+               , p.modify_datetime
+               , p.modify_user_id
+               , mo.user_login_id as modify_user_login_id
+          FROM project_master p INNER JOIN user_access re
+            ON p.regist_user_id = re.USER_ID INNER JOIN user_access mo
+            ON p.modify_user_id = mo.USER_ID
+         WHERE p.delete_yn = 'N'
+         ORDER BY p.project_id DESC
+    </select>
+
+    <select id="getProject" resultType="io.playce.roro.common.dto.project.ProjectResponse">
+        SELECT p.project_id
+               , p.project_name
+               , p.description
+               , p.regist_datetime
+               , p.regist_user_id
+               , re.user_login_id as regist_user_login_id
+               , p.modify_datetime
+               , p.modify_user_id
+               , mo.user_login_id as modify_user_login_id
+          FROM project_master p INNER JOIN user_access re
+            ON p.regist_user_id = re.USER_ID INNER JOIN user_access mo
+            ON p.modify_user_id = mo.USER_ID
+         WHERE p.delete_yn = 'N'
+           AND p.project_id = #{projectId}
+    </select>
+
+    <select id="getProjectCountByName" resultType="int">
+        SELECT COUNT(project_id)
+        FROM project_master
+        WHERE delete_yn = 'N'
+        AND project_name = #{projectName}
+        <if test="oldProjectName != null">
+            AND project_name != #{oldProjectName}
+        </if>
+    </select>
+
+</mapper>

@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.mariadb">
+
+    <select id="selectVariable" resultType="io.playce.roro.db.asmt.mariadb.dto.Variable">
+        SHOW VARIABLES
+    </select>
+
+    <select id="selectStartUpTime" resultType="Date">
+        SELECT DATE_SUB(now(), INTERVAL (SELECT VARIABLE_VALUE from information_schema.GLOBAL_STATUS where VARIABLE_NAME = 'Uptime') SECOND) AS startup_time
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.mariadb.dto.Database">
+        SELECT
+            TABLE_SCHEMA AS name,
+            count(*) AS table_count,
+            temp.db_size_mb AS database_size_mb
+        FROM
+            information_schema.TABLES t
+            INNER JOIN (
+                SELECT
+                    table_schema AS database_name,
+                    ROUND(SUM(data_length + index_length)/ 1024 / 1024, 2) AS db_size_mb
+                FROM
+                    information_schema.TABLES
+                GROUP BY 1) temp ON temp.database_name = t.table_schema
+        WHERE
+            table_type = 'BASE TABLE'
+            AND table_schema NOT IN  ('information_schema', 'mysql', 'performance_schema', 'sys')
+        GROUP BY
+            TABLE_SCHEMA, temp.db_size_mb
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Database">
+        SELECT
+            TABLE_SCHEMA AS name,
+            count(*) AS table_count,
+            temp.db_size_mb AS database_size_mb
+        FROM
+            information_schema.TABLES t
+            INNER JOIN (
+                SELECT
+                    table_schema AS database_name,
+                    ROUND(SUM(data_length + index_length)/ 1024 / 1024, 2) AS db_size_mb
+                FROM
+                    information_schema.TABLES
+                GROUP BY 1) temp ON temp.database_name = t.table_schema
+        WHERE
+            table_type = 'BASE TABLE'
+            AND database_name = #{databaseName}
+        GROUP BY
+            TABLE_SCHEMA
+    </select>
+
+    <select id="selectTableDataUsage" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.TableDataUsage">
+        SELECT
+            table_schema AS database_name,
+            table_name AS table_name,
+            ROUND(((data_length + index_length) / 1024 / 1024), 2) AS total_size_mb,
+            ROUND((data_length / 1024 / 1024), 2) AS data_size_mb,
+            ROUND((index_length / 1024 / 1024), 2) AS index_size_mb
+        FROM
+            information_schema.tables
+        WHERE
+            table_type = 'BASE TABLE'
+            AND table_schema = #{databaseName}
+    </select>
+
+    <select id="selectIndexUsage" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.IndexUsage">
+        SELECT
+            database_name,
+            table_name,
+            index_name,
+            ROUND((stat_value * @@innodb_page_size / 1024 / 1024), 2) AS index_size_mb
+        FROM
+            mysql.innodb_index_stats
+        WHERE
+            stat_name = 'size'
+            AND index_name != 'PRIMARY'
+            AND database_name = #{databaseName}
+    </select>
+
+    <select id="selectTable" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Table">
+        SELECT
+            table_schema AS database_name,
+            table_name as table_name,
+            engine,
+            table_rows,
+            ROUND((data_length + index_length)/ 1024 / 1024, 2) AS table_size_mb
+        FROM
+            information_schema.tables
+        WHERE
+            table_type = 'BASE TABLE'
+            AND table_schema = #{databaseName}
+    </select>
+
+    <select id="selectTableScript" parameterType="String" resultType="Map">
+        SHOW CREATE TABLE ${tableName}
+    </select>
+
+    <select id="selectView" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.View">
+        SELECT
+            table_schema AS database_name,
+            table_name AS view_name,
+            check_option,
+            is_updatable,
+            security_type,
+            view_definition AS ddl_script
+        FROM
+            information_schema.VIEWS
+        WHERE
+            table_schema = #{databaseName}
+    </select>
+
+    <select id="selectIndex" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Index">
+        SELECT
+            index_schema AS database_name,
+            table_name,
+            index_name,
+            index_type,
+            seq_in_index,
+            column_name AS index_column,
+            (CASE
+                 WHEN NON_UNIQUE = 1 THEN 'NOT UNIQUE'
+                 ELSE 'UNIQUE'
+            END) AS uniqueness
+        FROM
+            information_schema.STATISTICS
+        WHERE
+            table_schema = #{databaseName}
+        ORDER BY
+            index_schema, table_name, seq_in_index
+    </select>
+
+    <select id="selectProcedure" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Procedure">
+        SELECT
+            routine_schema AS database_name,
+            routine_name AS procedure_name,
+            data_type AS return_type,
+            routine_comment,
+            created,
+            routine_definition AS ddl_script
+        FROM
+            information_schema.ROUTINES
+        WHERE
+            routine_schema = #{databaseName}
+            AND routine_type = 'PROCEDURE'
+    </select>
+
+
+    <select id="selectFunction" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Function">
+        SELECT
+            routine_schema AS database_name,
+            routine_name AS function_name,
+            data_type AS return_type,
+            routine_comment,
+            created,
+            routine_definition AS ddl_script
+        FROM
+            information_schema.ROUTINES
+        WHERE
+            routine_schema = #{databaseName}
+            AND routine_type = 'FUNCTION'
+    </select>
+
+    <select id="selectTrigger" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Trigger">
+        SELECT
+            trigger_name,
+            action_timing,
+            trigger_schema AS database_name,
+            concat(event_object_schema, '.', event_object_table) AS trigger_table,
+            event_manipulation AS trigger_event,
+            action_statement AS ddl_script
+        FROM
+            information_schema.TRIGGERS
+        WHERE
+            trigger_schema = #{databaseName}
+    </select>
+
+    <select id="selectEvent" parameterType="String" resultType="io.playce.roro.db.asmt.mariadb.dto.Event">
+        SELECT
+            event_schema AS database_name,
+            event_name,
+            event_definition,
+            event_type,
+            concat(interval_value, ' ', interval_field) AS 'interval',
+            (CASE
+                 WHEN event_type = 'RECURRING' THEN starts
+                 ELSE execute_at
+            END) AS execute_time,
+            starts,
+            ends,
+            status,
+            created
+        FROM
+            information_schema.EVENTS
+        WHERE
+            event_schema = #{databaseName}
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.mariadb.dto.User">
+        SELECT
+            host,
+            user AS username,
+            plugin AS auth_type
+        FROM
+            mysql.user
+    </select>
+
+
+    <select id="selectGlobalPriv" resultType="io.playce.roro.db.asmt.mariadb.dto.User">
+        SELECT
+            host,
+            user AS username,
+            priv
+        FROM
+            mysql.global_priv
+    </select>
+
+    <select id="selectDblink" resultType="io.playce.roro.db.asmt.mariadb.dto.DbLink">
+        SELECT
+            server_name,
+            host,
+            db AS db_name,
+            username,
+            port,
+            wrapper
+        FROM
+            mysql.servers
+    </select>
+
+</mapper>

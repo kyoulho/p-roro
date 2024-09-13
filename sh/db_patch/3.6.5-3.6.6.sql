@@ -1,0 +1,5 @@
+-- Create Index
+create index discovered_port_relation_server_inventory_id_index on discovered_port_relation (server_inventory_id);
+create index discovered_port_relation_target_ip_address_index on discovered_port_relation (target_ip_address);
+create index discovered_instance_master_discovered_ip_address_index on discovered_instance_master (discovered_ip_address);
+create index discovered_instance_master_delete_yn_index on discovered_instance_master (delete_yn);

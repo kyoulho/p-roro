@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.discovered.DiscoveredInstanceMapper">
+    <sql id="discovered-server">
+        select dim.discovered_instance_id
+             , if(dpr.inventory_direction_port_type_code = 'INB', im.inventory_id, null) as target_id
+             , if(dpr.inventory_direction_port_type_code = 'INB', im.inventory_name, 'Discovered Server') as target_name
+             , if(dpr.inventory_direction_port_type_code = 'INB', dpr.svr_inv_ip_addr, dpr.target_ip_address) as target_ip
+             , dpr.service_port as port
+             , dpr.protocol
+             , dpr.known_port_name as a
+             , if(dpr.inventory_direction_port_type_code = 'INB', null, im.inventory_id) as source_id
+             , if(dpr.inventory_direction_port_type_code = 'INB', 'Discovered Server', im.inventory_name) as source_name
+             , if(dpr.inventory_direction_port_type_code = 'INB', dpr.target_ip_address, dpr.svr_inv_ip_addr) as source_ip
+             , dim.regist_datetime as discovered_date
+          from discovered_instance_master dim
+          join discovered_port_relation dpr
+            on dpr.target_ip_address = dim.discovered_ip_address
+           and dim.inventory_type_code = 'SVR'
+           and dim.possession_inventory_id is null
+           and dim.delete_yn = 'N'
+           and dim.project_id = #{projectId}
+          join inventory_master im
+            on im.inventory_id = dpr.server_inventory_id
+           and im.delete_yn = 'N'
+           and im.project_id = #{projectId}
+         where 1=1
+           <if test='pageRequest.endPort != null'>
+           and dpr.service_port between #{pageRequest.startPort} and #{pageRequest.endPort}
+           </if>
+           <if test='pageRequest.endPort == null'>
+           and dpr.service_port = #{pageRequest.startPort}
+           </if>
+           <if test='pageRequest.target == "SVR"'>
+           and dpr.inventory_direction_port_type_code = 'INB'
+           </if>
+           <if test='pageRequest.target == "DISC_SVR"'>
+           and dpr.inventory_direction_port_type_code = 'OUTB'
+           </if>
+           <if test='pageRequest.keyword != null'>
+           and (
+               im.inventory_id LIKE CONCAT('%',#{pageRequest.keyword},'%')
+            or im.inventory_name LIKE CONCAT('%',#{pageRequest.keyword},'%')
+            or dpr.svr_inv_ip_addr LIKE CONCAT('%',#{pageRequest.keyword},'%')
+            or dpr.service_port LIKE CONCAT('%',#{pageRequest.keyword},'%')
+            or dpr.protocol LIKE CONCAT('%',#{pageRequest.keyword},'%')
+            or dpr.target_ip_address LIKE CONCAT('%',#{pageRequest.keyword},'%')
+           )
+           </if>
+    </sql>
+
+    <select id="selectDiscoveredServer" resultType="io.playce.roro.common.dto.discovered.DiscoveredServerListResponse$Content">
+        <include refid="discovered-server"/>
+        <if test="pageRequest.isExcelDownload != true">
+         limit #{pageRequest.pageSize} offset #{pageRequest.pageNumber}
+        </if>
+    </select>
+
+    <select id="selectDiscoveredServerCount" resultType="Long">
+        select count(1)
+          from (<include refid="discovered-server"/>) a
+    </select>
+
+    <select id="selectAllDiscoveredServer" resultType="Long">
+        SELECT
+            T.discovered_instance_id
+        FROM (
+            SELECT
+                dim.discovered_instance_id
+                , dpr.target_ip_address as ip_address
+            FROM discovered_instance_master dim
+                           JOIN discovered_port_relation dpr
+                                ON dpr.target_ip_address = dim.discovered_ip_address
+                                    AND dim.inventory_type_code = 'SVR'
+                                    AND dim.possession_inventory_id IS NULL
+                                    AND dim.delete_yn = 'N'
+                                    AND dim.project_id = #{projectId}
+                           JOIN inventory_master im
+                                ON im.inventory_id = dpr.server_inventory_id
+                                    AND im.delete_yn = 'N'
+                                    AND im.project_id = #{projectId}
+                  WHERE dim.project_id = #{projectId}
+            ) AS T
+            WHERE T.ip_address = #{representativeIpAddress}
+            GROUP BY T.discovered_instance_id
+    </select>
+
+    <select id="selectDiscoveredServerWithoutPaging" resultType="io.playce.roro.common.dto.discovered.DiscoveredServerListExcelResponse">
+        SELECT
+            im.INVENTORY_ID,
+            im.INVENTORY_NAME,
+            dpr.SVR_INV_IP_ADDR,
+            dpr.SERVICE_PORT,
+            dpr.PROTOCOL,
+            dim.DISCOVERED_IP_ADDRESS,
+            dpr.INVENTORY_DIRECTION_PORT_TYPE_CODE,
+            dim.REGIST_DATETIME
+        FROM
+            discovered_instance_master dim
+            INNER JOIN discovered_port_relation dpr ON dim.DISCOVERED_IP_ADDRESS = dpr.TARGET_IP_ADDRESS
+            INNER JOIN inventory_master im on im.INVENTORY_ID = dim.FINDER_INVENTORY_ID
+        WHERE
+            dim.POSSESSION_INVENTORY_ID is null
+          and im.INVENTORY_TYPE_CODE = 'SVR'
+          and dim.INVENTORY_REGIST_TYPE_CODE = 'DISC'
+          and im.PROJECT_ID = #{projectId}
+    </select>
+
+    <select id="selectDiscoveredServerIPList" resultType="String">
+        SELECT
+            dim.DISCOVERED_IP_ADDRESS
+        FROM
+            discovered_instance_master dim
+        WHERE
+            dim.DELETE_YN = 'N'
+          and dim.POSSESSION_INVENTORY_ID is null
+          and dim.INVENTORY_TYPE_CODE = 'SVR'
+          and dim.INVENTORY_REGIST_TYPE_CODE = 'DISC'
+          and dim.PROJECT_ID = #{projectId}
+        ORDER BY dim.DISCOVERED_IP_ADDRESS
+    </select>
+
+    <select id="selectDiscoveredDatabaseList" resultType="io.playce.roro.common.dto.discovered.DiscoveredDatabaseListResponse">
+        SELECT
+            dim.discovered_instance_id,
+            dim.finder_inventory_id,
+            dim.inventory_type_code,
+            dim.inventory_detail_type_code,
+            dim.project_id,
+            dim.discovered_ip_address,
+            di.database_service_name,
+            di.jdbc_url,
+            di.user_name,
+            dim.regist_datetime,
+            im.inventory_type_code AS finder_inventory_type_code,
+            im.inventory_name AS finder_inventory_name,
+            -- 기존에 쓰이는 곳이 있어서 그대로 둔다.
+            CASE
+                WHEN im.inventory_type_code = 'SVR' THEN dim.finder_inventory_id
+                ELSE NULL
+            END AS server_inventory_id,
+            CASE
+                WHEN im.inventory_type_code = 'SVR' THEN im.inventory_name
+                ELSE NULL
+            END AS server_inventory_name
+        FROM
+            discovered_instance_master dim
+            LEFT JOIN database_instance di
+                ON di.database_instance_id = dim.discovered_instance_id
+            LEFT JOIN inventory_master im
+                ON dim.finder_inventory_id = im.inventory_id AND im.delete_yn = 'N'
+        WHERE
+            dim.possession_inventory_id is null
+            AND dim.inventory_type_code = 'DBMS'
+            AND dim.inventory_regist_type_code = 'DISC'
+            AND dim.delete_yn = 'N'
+            AND dim.project_id = #{projectId}
+    </select>
+
+    <select id="selectDiscoveredDatabaseDetail" resultType="io.playce.roro.common.dto.discovered.DiscoveredDatabaseDetailResponse">
+        SELECT
+            dim.discovered_instance_id,
+            dim.finder_inventory_id,
+            dim.inventory_type_code,
+            dim.inventory_detail_type_code,
+            dim.project_id,
+            dim.discovered_ip_address,
+            dim.discovered_detail_division,
+            di.database_service_name,
+            di.jdbc_url,
+            di.user_name,
+            dim.regist_datetime,
+            im.inventory_id as server_inventory_id,
+            im.inventory_name as server_inventory_name
+        FROM
+            discovered_instance_master dim
+            LEFT JOIN database_instance di
+                ON di.database_instance_id = dim.discovered_instance_id
+            LEFT JOIN inventory_master im
+                ON dim.finder_inventory_id = im.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+        WHERE
+            dim.possession_inventory_id is null
+            AND dim.inventory_type_code = 'DBMS'
+            AND dim.inventory_regist_type_code = 'DISC'
+            AND dim.delete_yn = 'N'
+            AND dim.project_id = #{projectId}
+            AND dim.discovered_instance_id = #{discoveredInstanceId}
+    </select>
+
+    <select id="selectDuplicatedDiscoveredDatabaseCount" resultType="int">
+        SELECT
+            COUNT(*)
+        FROM
+            DISCOVERED_INSTANCE_MASTER
+        WHERE
+            delete_yn = 'N'
+            AND inventory_type_code ='DBMS'
+            AND project_id = #{projectId}
+            AND discovered_ip_address = #{representativeIpAddress}
+            AND discovered_detail_division = #{discoveredDetailDivision}
+    </select>
+
+</mapper>

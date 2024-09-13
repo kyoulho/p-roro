@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.tibero">
+
+    <select id="selectInstance" resultType="io.playce.roro.db.asmt.tibero.dto.Instance">
+        SELECT
+            host_name,
+            version,
+            startup_time,
+            status,
+            tip_file
+        FROM
+            v$instance
+        WHERE
+            ROWNUM = 1
+    </select>
+
+    <select id="selectDbSize" resultType="Long">
+        SELECT
+            SUM(db_size_mb)
+        FROM (
+             SELECT
+                 SUM(bytes)/1024/1024 AS db_size_mb
+             FROM
+                 dba_segments
+             GROUP BY
+                 owner
+             )
+    </select>
+
+    <select id="selectSga" resultType="io.playce.roro.db.asmt.tibero.dto.Sga">
+        SELECT
+            name,
+            ROUND(total / 1024 / 1024) AS total_size_mb,
+            ROUND(used / 1024 / 1024) AS used_size_mb
+        FROM
+            v$sga
+    </select>
+
+    <select id="selectDataFile" resultType="io.playce.roro.db.asmt.tibero.dto.DataFile">
+        SELECT
+            file_id,
+            file_name,
+            tablespace_name,
+            size_mb,
+            free_mb,
+            max_size_mb,
+            max_free_mb,
+            autoextensible,
+            increment_by,
+            status,
+            TRUNC((max_free_mb / max_size_mb) * 100) AS free_pct,
+            100 - TRUNC((max_free_mb / max_size_mb) * 100) AS used_pct
+        FROM
+            (
+                SELECT
+                    b.file_id,
+                    b.file_name,
+                    a.tablespace_name,
+                    b.size_mb,
+                    a.free_mb,
+                    b.max_size_mb,
+                    b.autoextensible,
+                    b.increment_by,
+                    b.status,
+                    a.free_mb + (b.max_size_mb - b.size_mb) AS max_free_mb
+                FROM
+                    (
+                        SELECT
+                            tablespace_name,
+                            TRUNC(SUM(bytes)/ 1024 / 1024) AS free_mb
+                        FROM
+                            dba_free_space
+                        GROUP BY
+                            tablespace_name) a
+                    INNER JOIN (
+                        SELECT
+                            file_id,
+                            file_name,
+                            tablespace_name,
+                            autoextensible,
+                            increment_by,
+                            status,
+                            ROUND(bytes / 1024 / 1024) AS size_mb,
+                            ROUND(GREATEST(bytes, maxbytes)/ 1024 / 1024) AS max_size_mb
+                        FROM
+                            dba_data_files) b ON a.tablespace_name = b.tablespace_name
+            )
+        ORDER BY
+            free_pct
+    </select>
+
+    <select id="selectControlFile" resultType="io.playce.roro.db.asmt.tibero.dto.ControlFile">
+        SELECT
+            name,
+            status
+        FROM
+            v$controlfile
+    </select>
+
+    <select id="selectLogFile" resultType="io.playce.roro.db.asmt.tibero.dto.LogFile">
+        SELECT
+            l.status,
+            l.archived,
+            lf.type,
+            first_time,
+            lf.group# AS group_id,
+            lf.member AS name,
+            TRUNC(l.bytes / 1024 / 1024) AS size_mb,
+            l.sequence# AS sequence,
+            l.first_change# AS first_change
+        FROM
+            v$logfile lf
+            INNER JOIN v$log l ON l.group# = lf.group#
+    </select>
+
+    <select id="selectTableSpace" resultType="io.playce.roro.db.asmt.tibero.dto.TableSpace">
+        SELECT
+            tablespace_name,
+            block_size,
+            extent_management,
+            allocation_type,
+            segment_space_management,
+            status,
+            (SELECT dbms_metadata.get_ddl('TABLESPACE', tablespace_name) FROM dual) AS ddl_script
+        FROM
+            dba_tablespaces
+        ORDER BY
+            tablespace_name
+    </select>
+
+    <select id="selectParameter" resultType="io.playce.roro.db.asmt.tibero.dto.Parameter">
+        SELECT
+            name,
+            value,
+            dflt_value AS default_value
+        FROM
+            v$parameters
+    </select>
+
+    <select id="selectSegment" resultType="io.playce.roro.db.asmt.tibero.dto.SegmentTemp">
+        SELECT
+            segment_type AS name,
+            SUM(bytes) AS value
+        FROM
+            dba_segments
+        GROUP BY
+            segment_type
+        UNION
+        SELECT
+            'total_size_mb' AS name,
+            s.value
+        FROM
+            (
+            SELECT
+                SUM(bytes / 1024 / 1024) AS value
+            FROM
+                dba_segments) s
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.tibero.dto.User">
+        SELECT
+            username,
+            account_status,
+            lock_date,
+            expiry_date,
+            default_tablespace,
+            default_temp_tablespace,
+            created,
+            profile,
+            authentication_type,
+            (
+                SELECT
+                    SUBSTR(SYS_CONNECT_BY_PATH (granted_role ,','), 2)
+                FROM
+                    (
+                        SELECT
+                            granted_role,
+                            row_number () over (ORDER BY granted_role) rn,
+                            COUNT(*) over () cnt
+                        FROM
+                            dba_role_privs
+                        WHERE
+                            grantee = user)
+                WHERE
+                    (rn = cnt) START WITH rn = 1 CONNECT BY rn = PRIOR rn + 1) AS roles
+        FROM
+            dba_users
+        ORDER BY
+            username
+    </select>
+
+    <select id="selectPublicSynonym" resultType="io.playce.roro.db.asmt.tibero.dto.PublicSynonym">
+        SELECT
+            owner,
+            synonym_name,
+            org_object_owner,
+            org_object_name
+        FROM
+            dba_synonyms
+        WHERE
+            owner = 'PUBLIC'
+    </select>
+
+    <select id="selectDbLink" resultType="io.playce.roro.db.asmt.tibero.dto.DbLink">
+        SELECT
+            owner,
+            db_link,
+            username,
+            host,
+            created
+        FROM
+            dba_db_links
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.tibero.dto.Database">
+        SELECT
+            dbid,
+            name,
+            open_mode,
+            log_mode,
+            create_date
+        FROM
+            v$database
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.tibero.dto.Database">
+        SELECT
+            dbid,
+            name,
+            open_mode,
+            log_mode,
+            create_date
+        FROM
+            v$database
+        WHERE
+            name = #{databaseName}
+    </select>
+
+    <select id="selectObjectSummary" resultType="io.playce.roro.db.asmt.tibero.dto.ObjectSummaryTemp">
+        SELECT
+            object_type,
+            COUNT(*) AS object_count
+        FROM
+            user_objects
+        GROUP BY
+            object_type
+    </select>
+
+    <select id="selectTable" resultType="io.playce.roro.db.asmt.tibero.dto.Table">
+        SELECT
+            t.table_name,
+            t.tablespace_name,
+            t.num_rows,
+            t.blocks,
+            t.partitioned,
+            (SELECT dbms_metadata.get_ddl('TABLE', u.table_name) FROM user_tables u WHERE u.table_name = t.table_name) AS ddl_script,
+            (
+                SELECT
+                    SUBSTR(SYS_CONNECT_BY_PATH (privilege , ','), 2)
+                FROM
+                    (
+                    SELECT
+                        tp.privilege,
+                        row_number () over (ORDER BY tp.privilege) rn,
+                        COUNT(*) over () cnt
+                    FROM
+                        user_tab_privs tp
+                    WHERE
+                        tp.table_name = t.table_name
+                    GROUP BY
+                        privilege)
+                WHERE
+                    (rn = cnt) START WITH rn = 1 CONNECT BY rn = PRIOR rn + 1
+            ) AS privilege,
+            (
+            SELECT
+                s.bytes / 1024 / 1024 size_mb
+            FROM
+                user_segments s
+            WHERE
+                s.segment_type = 'TABLE'
+                AND s.segment_name = t.table_name
+            ) AS size_mb
+        FROM
+            user_tables t
+    </select>
+
+    <select id="selectView" resultType="io.playce.roro.db.asmt.tibero.dto.View">
+        SELECT
+            view_name,
+            text AS ddl_script
+        FROM
+            user_views
+    </select>
+
+    <select id="selectMaterializedView" resultType="io.playce.roro.db.asmt.tibero.dto.MaterializedView">
+        SELECT
+            mview_name,
+            container_name,
+            updatable,
+            rewrite_enabled,
+            rewrite_capability,
+            refresh_mode,
+            refresh_method,
+            build_mode,
+            fast_refreshable,
+            staleness,
+            compile_state,
+            (SELECT dbms_metadata.get_ddl('MATERIALIZED_VIEW', mview_name) FROM dual) AS ddl_script
+        FROM
+            user_mviews
+    </select>
+
+    <select id="selectIndex" resultType="io.playce.roro.db.asmt.tibero.dto.Index">
+        SELECT
+            i.index_name,
+            i.index_type,
+            i.table_owner,
+            i.table_name,
+            i.uniqueness,
+            i.tablespace_name,
+            i.status,
+            i.num_rows,
+            i.partitioned,
+            (SELECT dbms_metadata.get_ddl('INDEX', index_name) FROM dual) AS ddl_script,
+            (
+            SELECT
+                s.bytes / 1024 / 1024 size_mb
+            FROM
+                user_segments s
+            WHERE
+                s.segment_type = 'INDEX'
+                AND s.segment_name = i.index_name
+            ) AS size_mb
+        FROM
+            user_indexes i
+
+    </select>
+
+    <select id="selectProcedure" resultType="io.playce.roro.db.asmt.tibero.dto.Procedure">
+        SELECT
+            status,
+            object_name AS procedure_name,
+            ddl_script
+        FROM
+            user_objects o
+            INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'PROCEDURE'
+                GROUP BY
+                    name) s ON s.name = o.object_name
+        WHERE
+            object_type = 'PROCEDURE'
+    </select>
+
+    <select id="selectPackage" resultType="io.playce.roro.db.asmt.tibero.dto.Package">
+        SELECT
+            status,
+            object_name AS package_name,
+            ddl_script
+        FROM
+            user_objects o
+            INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'PACKAGE'
+                GROUP BY
+                    name) s ON s.name = o.object_name
+        WHERE
+            object_type = 'PACKAGE'
+    </select>
+
+    <select id="selectPackageBody" resultType="io.playce.roro.db.asmt.tibero.dto.PackageBody">
+        SELECT
+            status,
+            object_name AS package_body_name,
+            ddl_script
+        FROM
+            user_objects o
+            INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'PACKAGE BODY'
+                GROUP BY
+                    name) s ON s.name = o.object_name
+        WHERE
+            object_type = 'PACKAGE BODY'
+    </select>
+
+    <select id="selectFunction" resultType="io.playce.roro.db.asmt.tibero.dto.Function">
+        SELECT
+            status,
+            object_name AS function_name,
+            ddl_script
+        FROM
+            user_objects o
+                INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'FUNCTION'
+                GROUP BY
+                    name) s ON s.name = o.object_name
+        WHERE
+            object_type = 'FUNCTION'
+    </select>
+
+    <select id="selectQueue" resultType="io.playce.roro.db.asmt.tibero.dto.Queue">
+        SELECT
+            name,
+            queue_table,
+            queue_type,
+            max_retries,
+            enqueue_enabled,
+            dequeue_enabled,
+            retention,
+            user_comment
+        FROM
+            user_queues
+    </select>
+
+    <select id="selectTrigger" resultType="io.playce.roro.db.asmt.tibero.dto.Trigger">
+        SELECT
+            trigger_name,
+            trigger_type,
+            triggering_event,
+            table_owner,
+            table_name,
+            referencing_names,
+            when_clause,
+            status,
+            ddl_script
+        FROM
+            user_triggers t
+            INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'TRIGGER'
+                GROUP BY
+                    name) s ON s.name = t.trigger_name
+    </select>
+
+    <select id="selectType" resultType="io.playce.roro.db.asmt.tibero.dto.Type">
+        SELECT
+            type_name,
+            typecode,
+            attributes,
+            methods,
+            predefined,
+            incomplete,
+            final,
+            instantiable,
+            ddl_script
+        FROM
+            user_types t
+            INNER JOIN (
+                SELECT
+                    name,
+                    SUBSTR(EXTRACT(XMLAGG(XMLELEMENT(x, ' ', TEXT) ORDER BY LINE), '//text()').GETCLOBVAL(), 2) AS ddl_script
+                FROM
+                    USER_SOURCE
+                WHERE
+                    type = 'TYPE'
+                GROUP BY
+                    name) s ON s.name = t.type_name
+    </select>
+
+    <select id="selectSequence" resultType="io.playce.roro.db.asmt.tibero.dto.Sequence">
+        SELECT
+            sequence_name,
+            min_value,
+            max_value,
+            increment_by,
+            cycle_flag,
+            order_flag,
+            if_avail,
+            cache_size,
+            last_number
+        FROM
+            user_sequences
+    </select>
+
+    <select id="selectSynonym" resultType="io.playce.roro.db.asmt.tibero.dto.Synonym">
+        SELECT
+            synonym_name,
+            org_object_owner,
+            org_object_name
+        FROM
+            user_synonyms
+    </select>
+
+    <select id="selectJob" resultType="io.playce.roro.db.asmt.tibero.dto.Job">
+        SELECT
+            job_name,
+            job_style,
+            job_creator,
+            program_owner,
+            program_name,
+            schedule_owner,
+            schedule_name,
+            schedule_type,
+            start_date,
+            event_queue_owner,
+            event_queue_name,
+            event_queue_agent,
+            event_condition,
+            event_rule,
+            state,
+            run_count,
+            failure_count,
+            last_start_date,
+            last_run_duration,
+            nls_env
+        FROM
+            user_scheduler_jobs
+    </select>
+
+</mapper>

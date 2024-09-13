@@ -1,0 +1,16 @@
+distribution:
+  command: cat /etc/*-release 2>/dev/null | uniq
+  name-map:
+    rhel:
+      - REDHAT
+      - CENTOS
+    debian:
+      - DEBIAN
+
+  # id_like: Assessment component name
+  component-name:
+    rhel_fedora: REDHAT
+    fedora: REDHAT
+    centos_rhel_fedora: REDHAT
+
+

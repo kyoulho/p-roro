@@ -1,0 +1,566 @@
+[
+  {
+    "thirdPartySolutionName": "Apache1",
+    "discoveredThirdSolutionCount": 4,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 204,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Tomcat-agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058955000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/opt/wasup/engines/wasup-8.5.51/conf/server.xml] file exists.",
+              "[/opt/wasup/engines/wasup-8.5.51/conf/context.xml] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 205,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Tomcat-agent1(1)",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058956000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/opt/wasup/engines/wasup-7.0.100/conf/server.xml] file exists.",
+              "[/opt/wasup/engines/wasup-7.0.100/conf/context.xml] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 215,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Websphere-Jeus8-server",
+        "serverInventoryId": 214,
+        "serverName": "Jeus8-server",
+        "serverIp": "192.168.4.51",
+        "discoveredDatetime": 1666158246000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/opt/IBM/WebSphere/AppServer_1/profileTemplates/cell/dmgr/documents/config/templates/servertypes/PROXY_SERVER/servers/http_sip_proxy_server_zos/server.xml] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 217,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Apache-Jeus8-server",
+        "serverInventoryId": 214,
+        "serverName": "Jeus8-server",
+        "serverIp": "192.168.4.51",
+        "discoveredDatetime": 1666158047000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/usr/lib/tmpfiles.d/httpd.conf] file exists."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "Apache",
+    "discoveredThirdSolutionCount": 5,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 203,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058953000,
+        "discoveryTypes": [
+          {
+            "searchType": "PORT",
+            "findContents": [
+              "[8080] port is listening."
+            ]
+          },
+          {
+            "searchType": "PROCESS",
+            "findContents": [
+              "[/usr/lib/jvm/java-1.8.0/bin/java -Djava.util.logging.config.file=/opt/wasup/servers/wasup-app-02/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -server -Dserver=wasup-app-02 -Djvmid=wasup-app-02 -Dhttp.port=8180 -Dajp.port=8109 -Dssl.port=8543 -Dshutdown.port=8105 -DjvmRoute=wasup-app-02 -Djava.library.path=/opt/wasup/engines/wasup-8.5.51/lib -DLOG_BASE=/opt/wasup/servers/wasup-app-02/logs -noverify -XX:+UseG1GC -Xms1024m -Xmx1024m -XX:MaxMetaspaceSize=256m -XX:MetaspaceSize=256m -XX:+UseG1GC -XX:G1ReservePercent=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:-UseCodeCacheFlushing -XX:ReservedCodeCacheSize=512m -XX:+DisableExplicitGC -XX:+PrintAdaptiveSizePolicy -XX:+UseLargePagesInMetaspace -Dorg.apache.tomcat.websocket.DEFAULT_BUFFER_SIZE=32768 -Xloggc:/opt/wasup/servers/wasup-app-02/logs/gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=5M -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-PrintTenuringDistribution -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/wasup/servers/wasup-app-02/logs/java_wasup-app-02_pid_20220921_132131.hprof -Djava.awt.headless=true -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/urandom -Dorg.apache.tomcat.websocket.DEFAULT_BUFFER_SIZE=32768 -Dsun.lang.ClassLoader.allowArraySyntax=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=10099 -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Ddolly.properties=/opt/wasup/servers/wasup-app-02/conf/dolly.properties -javaagent:/opt/wasup/engines/wasup-8.5.51/dolly/core-1.0.0-SNAPSHOT.jar -javaagent:/opt/wasup/engines/wasup-8.5.51/scouter/scouter.agent.jar -Dscouter.config=/opt/wasup/servers/wasup-app-02/scouter/conf/scouter.conf -Djdk.tls.ephemeralDHKeySize=2048 -Djava.protocol.handler.pkgs=org.apache.catalina.webresources -Dorg.apache.catalina.security.SecurityListener.UMASK=0027 -Dignore.endorsed.dirs= -classpath /opt/wasup/engines/wasup-8.5.51/bin/bootstrap.jar:/opt/wasup/engines/wasup-8.5.51/bin/tomcat-juli.jar -Dcatalina.base=/opt/wasup/servers/wasup-app-02 -Dcatalina.home=/opt/wasup/engines/wasup-8.5.51 -Djava.io.tmpdir=/opt/wasup/servers/wasup-app-02/temp org.apache.catalina.startup.Bootstrap start] process is running."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 3,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2008R2",
+        "serverInventoryId": 3,
+        "serverName": "Ovirt-Windows2008R2",
+        "serverIp": "192.168.1.108",
+        "discoveredDatetime": 1663132134000,
+        "discoveryTypes": [
+          {
+            "searchType": "PORT",
+            "findContents": [
+              "[8080] port is listening."
+            ]
+          },
+          {
+            "searchType": "PROCESS",
+            "findContents": [
+              "[\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\\bin\\Tomcat7.exe\" //RS//Tomcat7 \"C:\\Program Files\\Java\\jre6\\bin\\server\\jvm.dll\" -Dcatalina.home=\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\" -Dcatalina.base=\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\" -Djava.endorsed.dirs=\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\\endorsed\" -Djava.io.tmpdir=\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\\temp\" -Djava.util.logging.manager=\"org.apache.juli.ClassLoaderLogManager\" -Djava.util.logging.config.file=\"C:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\\conf\\logging.properties\"] process is running."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 2,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2008",
+        "serverInventoryId": 2,
+        "serverName": "Ovirt-Windows2008",
+        "serverIp": "192.168.1.158",
+        "discoveredDatetime": 1663132147000,
+        "discoveryTypes": [
+          {
+            "searchType": "PROCESS",
+            "findContents": [
+              "[\"C:\\jdk1.6\\bin\\java\"   -Djava.util.logging.config.file=\"C:\\apache-tomcat-7.0.32\\conf\\logging.properties\" -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager   -Djava.endorsed.dirs=\"C:\\apache-tomcat-7.0.32\\endorsed\" -classpath \"C:\\apache-tomcat-7.0.32\\bin\\bootstrap.jar;C:\\apache-tomcat-7.0.32\\bin\\tomcat-juli.jar\" -Dcatalina.base=\"C:\\apache-tomcat-7.0.32\" -Dcatalina.home=\"C:\\apache-tomcat-7.0.32\" -Djava.io.tmpdir=\"C:\\apache-tomcat-7.0.32\\temp\" org.apache.catalina.startup.Bootstrap  start] process is running."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 6,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2016",
+        "serverInventoryId": 6,
+        "serverName": "Ovirt-Windows2016",
+        "serverIp": "192.168.1.106",
+        "discoveredDatetime": 1663132337000,
+        "discoveryTypes": [
+          {
+            "searchType": "PORT",
+            "findContents": [
+              "[8080] port is listening."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 214,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Jeus8-server",
+        "serverInventoryId": 214,
+        "serverName": "Jeus8-server",
+        "serverIp": "192.168.4.51",
+        "discoveredDatetime": 1666158050000,
+        "discoveryTypes": [
+          {
+            "searchType": "PORT",
+            "findContents": [
+              "[8080] port is listening."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "SQL Server",
+    "discoveredThirdSolutionCount": 5,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 3,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2008R2",
+        "serverInventoryId": 3,
+        "serverName": "Ovirt-Windows2008R2",
+        "serverIp": "192.168.1.108",
+        "discoveredDatetime": 1663132134000,
+        "discoveryTypes": [
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[Microsoft SQL Server 2008 R2 (64-bit)] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 2,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2008",
+        "serverInventoryId": 2,
+        "serverName": "Ovirt-Windows2008",
+        "serverIp": "192.168.1.158",
+        "discoveredDatetime": 1663132147000,
+        "discoveryTypes": [
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[Microsoft SQL Server 2008 (64-bit)] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 4,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012",
+        "serverInventoryId": 4,
+        "serverName": "Ovirt-Windows2012",
+        "serverIp": "192.168.1.157",
+        "discoveredDatetime": 1663132180000,
+        "discoveryTypes": [
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[Microsoft SQL Server 2012 (64-bit)] package installed.",
+              "[Microsoft SQL Server 2012 (64-bit)] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 5,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012R2",
+        "serverInventoryId": 5,
+        "serverName": "Ovirt-Windows2012R2",
+        "serverIp": "192.168.1.95",
+        "discoveredDatetime": 1663132217000,
+        "discoveryTypes": [
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[SQL Server 2012 ??? ? 4(KB4018073) (64-bit)] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 6,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2016",
+        "serverInventoryId": 6,
+        "serverName": "Ovirt-Windows2016",
+        "serverIp": "192.168.1.106",
+        "discoveredDatetime": 1663132337000,
+        "discoveryTypes": [
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[Service Pack 3 for SQL Server 2014 (KB4022619) (64-bit)] package installed."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "Oracle",
+    "discoveredThirdSolutionCount": 3,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 3,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2008R2",
+        "serverInventoryId": 3,
+        "serverName": "Ovirt-Windows2008R2",
+        "serverIp": "192.168.1.108",
+        "discoveredDatetime": 1663132134000,
+        "discoveryTypes": [
+          {
+            "searchType": "CMD",
+            "findContents": [
+              "[sqlplus] command exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 4,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012",
+        "serverInventoryId": 4,
+        "serverName": "Ovirt-Windows2012",
+        "serverIp": "192.168.1.157",
+        "discoveredDatetime": 1663132180000,
+        "discoveryTypes": [
+          {
+            "searchType": "CMD",
+            "findContents": [
+              "[sqlplus] command exists.",
+              "[sqlplus] command exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 5,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012R2",
+        "serverInventoryId": 5,
+        "serverName": "Ovirt-Windows2012R2",
+        "serverIp": "192.168.1.95",
+        "discoveredDatetime": 1663132217000,
+        "discoveryTypes": [
+          {
+            "searchType": "CMD",
+            "findContents": [
+              "[sqlplus] command exists."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "elasticsearch",
+    "discoveredThirdSolutionCount": 3,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 203,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058953000,
+        "discoveryTypes": [
+          {
+            "searchType": "CMD",
+            "findContents": [
+              "[/usr/share/elasticsearch/bin/elasticsearch] command exists."
+            ]
+          },
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/etc/elasticsearch/elasticsearch.yml] file exists."
+            ]
+          },
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[elasticsearch-7.17.6-1.x86_64] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 4,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012",
+        "serverInventoryId": 4,
+        "serverName": "Ovirt-Windows2012",
+        "serverIp": "192.168.1.157",
+        "discoveredDatetime": 1663132180000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists.",
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 5,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012R2",
+        "serverInventoryId": 5,
+        "serverName": "Ovirt-Windows2012R2",
+        "serverIp": "192.168.1.95",
+        "discoveredDatetime": 1663132217000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "kibana",
+    "discoveredThirdSolutionCount": 3,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 203,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058953000,
+        "discoveryTypes": [
+          {
+            "searchType": "PORT",
+            "findContents": [
+              "[5601] port is listening."
+            ]
+          },
+          {
+            "searchType": "PROCESS",
+            "findContents": [
+              "[/usr/share/kibana/bin/../node/bin/node /usr/share/kibana/bin/../src/cli/dist --logging.dest=\"/var/log/kibana/kibana.log\" --pid.file=\"/run/kibana/kibana.pid\" --deprecation.skip_deprecated_settings[0]=\"logging.dest\"] process is running."
+            ]
+          },
+          {
+            "searchType": "CMD",
+            "findContents": [
+              "[/usr/share/kibana/bin/kibana] command exists."
+            ]
+          },
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/etc/kibana/kibana.yml] file exists."
+            ]
+          },
+          {
+            "searchType": "PKG",
+            "findContents": [
+              "[kibana-7.17.6-1.x86_64] package installed."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 4,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012",
+        "serverInventoryId": 4,
+        "serverName": "Ovirt-Windows2012",
+        "serverIp": "192.168.1.157",
+        "discoveredDatetime": 1663132180000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists.",
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 5,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "Ovirt-Windows2012R2",
+        "serverInventoryId": 5,
+        "serverName": "Ovirt-Windows2012R2",
+        "serverIp": "192.168.1.95",
+        "discoveredDatetime": 1663132217000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[C:\\TmaxSoft\\JEUS7\\lib\\system\\jeusutil.jar] file exists."
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "thirdPartySolutionName": "testtest",
+    "discoveredThirdSolutionCount": 3,
+    "discoveredThirdPartyInventories": [
+      {
+        "projectId": 1,
+        "inventoryId": 203,
+        "inventoryTypeCode": "SVR",
+        "sourceName": "agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058953000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/find: ‘./proc/2756’: 그런 파일이나 디렉터리가 없습니다] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 204,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Tomcat-agent1",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058955000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/opt/wasup/engines/wasup-8.5.51/conf/context.xml] file exists."
+            ]
+          }
+        ]
+      },
+      {
+        "projectId": 1,
+        "inventoryId": 205,
+        "inventoryTypeCode": "MW",
+        "sourceName": "Tomcat-agent1(1)",
+        "serverInventoryId": 203,
+        "serverName": "agent1",
+        "serverIp": "192.168.4.11",
+        "discoveredDatetime": 1666058956000,
+        "discoveryTypes": [
+          {
+            "searchType": "FILE",
+            "findContents": [
+              "[/opt/wasup/engines/wasup-7.0.100/conf/context.xml] file exists."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

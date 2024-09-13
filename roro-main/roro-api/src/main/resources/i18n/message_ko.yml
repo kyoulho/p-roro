@@ -1,0 +1,161 @@
+error:
+  common:
+    badRequest: Bad Request.
+    unauthorized: Unauthorized.
+    forbidden: Forbidden.
+    methodNotAllowed: Method Not Allowed.
+    unsupportedMediaType: Unsupported Media Type.
+    internalServerError: Internal Server Error.
+    unknownError: 알 수 없는 오류가 발생했습니다. 관리자에게 문의하십시오.
+    invalidInputValue: 유효하지 않은 입력 값입니다.
+    resourceNotFound: 주어진 ID에 해당하는 리소스가 존재하지 않습니다. {0}
+    resourceInUse: 리소스가 사용 중으로 기능을 수행할 수 없습니다.
+    invalidFileType: 지원하지 않는 파일 타입입니다. (파일 유형을 다시 확인하십시오.)
+    fileUploadFail: 파일 업로드를 실패하였습니다.
+    fileDownloadFail: 파일 다운로드를 실패하였습니다. {0}
+    constraintViolation: 데이터 제약 위반이 발생하였습니다. {0}
+    illegalArgument: 적절하지 않은 인자(파라메타)가 전달되었습니다. {0}
+    excelCreateFailed: Excel 파일 생성중 오류가 발생하였습니다. {0}
+    saveFile: 파일 저장 중 오류가 발생했습니다. {0}
+  auth:
+    userNotFound: 사용자를 찾을 수 없습니다.
+    passwordIncorrect: 현재 비밀번호가 올바르지 않습니다.
+    accountLocked: 계정이 잠겨있습니다.
+    authHeaderBlank: Authorization header가 비어 있습니다.
+    invalidAuthHeaderSize: 유효하지 않은 Authorization header 크기입니다.
+    invalidJwtSignature: 유효하지 않은 JWT Signature 입니다.
+    invalidJwtForm: 유효하지 않은 JWT Form 입니다.
+    expiredJwt: 만료된 JWT 입니다.
+    unsupportedJwt: 지원하지 않는 JWT 입니다.
+    jwtEmptyClaims: 비어있는 JWT Claims 입니다.
+    notTrustedTokenSet: 신뢰할 수 있는 Token으로 설정할 수 없습니다.
+    notPermittedToken: Token 발급이 허용되지 않습니다.
+    notPermittedAccessToken: 허용되지 않는 Access Token 입니다.
+  inventory:
+    service:
+      notFound: 서비스를 찾을 수 없습니다.
+      deletedFail: 서비스 삭제가 실패하였습니다. 서버 {0}, 미들웨어 {1}, 애플리케이션 {3}, 데이터베이스 {4} 에 연관되어 있는 아이템들이 존재합니다.
+      duplicate: 이미 사용 중인 서비스 이름입니다.
+      defaultDeleteFail: Default 서비스는 삭제할 수 없습니다.
+      json:
+        notSupport: 서비스 리포트는 JSON파일을 지원하지 않습니다.
+    server:
+      notFound: 서버를 찾을 수 없습니다.
+      deletedFail: 서버 삭제가 실패하였습니다. 미들웨어 {0}, 애플리케이션 {1}, 데이터베이스 {2} 에 연관되어 있는 아이템들이 존재합니다.
+      duplicate: 이미 사용 중인 IP 및 Port 입니다. 
+      required: 서버에는 1개 이상의 서비스가 필요합니다.
+      invalid:
+        keyFile: 유효하지 않은 키 파일입니다.
+        keyFileSize: 유효하지 않은 키 파일 사이즈입니다.
+      notModify: 서버를 수정할 수 없습니다.
+      rootPassword:
+        required: su 활성화 시 서버의 root 비밀번호는 필수입니다.
+      cronExpression:
+        notValid: 서버 모니터링 주기의 'Cron Expression'이 유효하지 않습니다.
+    middleware:
+      notFound: 미들웨어를 찾을 수 없습니다.
+      duplicate: 이미 사용 중인 미들웨어({0}) 입니다.
+    application:
+      notFound: 애플리케이션을 찾을 수 없습니다.
+      duplicate: 이미 사용 중인 애플리케이션({0}) 입니다.
+    database:
+      notFound: 데이터베이스를 찾을 수 없습니다.
+      duplicate: 이미 사용 중인 Username, Port 입니다.
+      notModify: 데이터베이스를 수정할 수 없습니다.
+    topology:
+      unsupportedType: 지원하지 않는 타입 입니다.
+    customer:
+      code:
+        duplicate: 인벤토리 코드 {0}은(는) 이미 존재하는 코드입니다.
+    invalid:
+      userPassword: 유효하지 않은 유저 패스워드입니다.
+  assessment:
+    notFound: Assessment를 찾을 수 없습니다.
+    cancel:
+      invalidStatus: Assessment가 대기중이 아닙니다.
+    delete:
+      invalidStatus: Assessment가 아직 종료되지 않았습니다.
+    duplicated: Assessment가 이미 대기중이거나 진행중입니다.
+    zipFailed: >
+      다음 이유로 zip 파일 생성이 실패하였습니다. 이유 : {0}
+    result:
+      uploadNotSupport: Assessment 결과 업로드를 지원하지 않습니다.
+  manual:
+    assessment:
+      invalidFile: 파일을 읽을 수 없습니다.
+      parsingFailed: >
+        Assessment 파일을 파싱할 수 없습니다. 이유 : {0}
+      processingFailed: >
+        Assessment 파일을 처리할 수 없습니다. 이유 : {0}
+  tc:
+    aws:
+      authFail: Credential 정보가 올바르지 않거나 {0} Region에 대한 권한이 없습니다.
+      ec2:
+        error: >
+          다음 이유로 요청이 실패하였습니다. 이유 : {0}
+    gcp:
+      authFail: Credential 정보가 올바르지 않거나 {0} Region에 대한 권한이 없습니다.
+      gce:
+        error: >
+          다음 이유로 요청이 실패하였습니다. 이유 : {0}
+    unsupportedType: ({0})는 지원하지 않는 클라우드 타입입니다.
+    credentialNotFound: Credential을 찾을 수 없습니다.
+    keyFileNotFound: Key 파일을 찾을 수 없습니다.
+    credentialInUse: Credential이 사용 중입니다.
+    invalidKeyFile: 유효하지 않은 Json 키파일입니다. Json에 project_id, client_email, client_id 속성이 있는지 확인하십시오.
+    invalidCredential: Credential 정보가 유효하지 않습니다. 액세스 키와 보안 액세스 키가 유효한지 확인하십시오.
+  migration:
+    windowsNotSupported: Windows는 지원하지 않습니다.
+    assessmentNotFound: Assessment 결과 값을 찾을 수 없습니다.
+    preConfigNotFound: Pre Config 결과 값을 찾을 수 없습니다.
+    projectIdNotFound: GCP Project ID를 찾을 수 없습니다.
+    preConfigInUse: 선택한 PreConfig가 마이그레이션에서 사용 중입니다.
+    imageIdNotDefined: Image id가 정의되지 않았습니다.
+    cancel:
+      invalidStatus: 마이그레이션이 진행중이지 않으므로 취소할 수 없습니다.
+    ip:
+      invalid: 유효하지 않은 Private IP({0}) 주소입니다.
+      notDefined: IP 주소가 정의되지 않았습니다.
+    subnet:
+      notFound: Subnet({0})을 찾을 수 없습니다.
+    duplicated: 동일 서버에 대한 Migration이 이미 대기중이거나 진행중입니다.
+    notFound: 마이그레이션을 찾을 수 없습니다.
+    delete:
+      invalidStatus: 마이그레이션이 아직 종료되지 않았습니다.
+  package:
+    notFound: Package를 찾을 수 없습니다.
+  subscription:
+    notFound: Subscription 파일이 등록되지 않았습니다. 읽기 기능만 가능합니다.
+    invalid: 유효하지 않은 Subscription 파일입니다. 읽기 기능만 가능합니다.
+    signatureNotMatch: 이 RoRo Manager를 위한 Subscription이 아닙니다. 읽기 기능만 가능합니다.
+    expired: Subscription이 만료되었습니다. 읽기 기능만 가능합니다.
+    countExceeded: 현재 Subscription은 {0} 를 초과하여 서버를 등록할 수 없습니다.
+    notAllowed1: Subscription 파일이 등록되지 않았습니다.
+    notAllowed2: 현재 Subscription으로는 수행할 수 없는 요청입니다.
+  networkfilter:
+    duplicated: 네트워크 필터 템플릿명은 중복될 수 없습니다.
+  cloudreadiness:
+    invalid: 유효하지 않은 클라우드 전환 진단 평가입니다.
+    notFound: 완료된 클라우드 전환 진단 평가가 존재하지 않습니다.
+    scanIncomplete: 스캔 완료된 서버가 존재하지 않습니다.
+  host.scan:
+    deleteFail: 스캔 내역 삭제가 실패하였습니다. 스캔이 진행중입니다.
+    incompleteScan: 진행 중인 스캔이 존재합니다.
+    belowBClass: 서브넷 비트는 16 에서 32 사이만 가능합니다.
+  third:
+    party:
+      duplicated: 이미 등록된 서드파티 솔루션 이름({0}) 입니다.
+      invalidParam: servideIds와 serverId는 동시에 입력될 수 없습니다.
+  project:
+    duplicated: 이미 사용 중인 프로젝트 이름입니다.
+  k8s:
+    cluster.duplicated: 이미 사용 중인 클러스터 이름입니다.
+
+
+excel:
+  filename:
+    services: 서비스 목록
+    servers: 서버 목록
+    applications: 애플리케이션 목록
+    databases: 데이터베이스 목록
+    middlewares: 미들웨어 목록

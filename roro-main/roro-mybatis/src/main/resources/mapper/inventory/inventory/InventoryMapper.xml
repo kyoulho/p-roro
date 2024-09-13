@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.inventory.InventoryMapper">
+
+    <select id="selectInventory" parameterType="Map" resultType="io.playce.roro.common.dto.inventory.inventory.UploadInventoryResponse">
+        select
+            ui.upload_inventory_id,
+            ui.file_name,
+            ui.file_path,
+            ui.upload_status_type_code,
+            ui.upload_process_result_txt,
+            ui.service_count,
+            ui.server_count,
+            ui.middleware_count,
+            ui.application_count,
+            ui.dbms_count
+        from
+            upload_inventory ui
+        where
+            ui.project_id = #{projectId}
+          and ui.upload_inventory_id = #{uploadInventoryId}
+          and ui.delete_yn = 'N';
+    </select>
+
+    <select id="selectInventoryList" parameterType="long" resultType="io.playce.roro.common.dto.inventory.inventory.InventoryResponse">
+        select
+            ui.upload_inventory_id,
+            ui.project_id,
+            ui.file_name,
+            ui.file_path,
+            ui.upload_status_type_code,
+            ui.upload_process_result_txt,
+            ui.service_count,
+            ui.server_count,
+            ui.middleware_count,
+            ui.application_count,
+            ui.dbms_count as database_count,
+            ui.regist_user_id,
+            ua.user_login_id as regist_user_login_id,
+            ui.regist_datetime,
+            ui.modify_user_id,
+            ua2.user_login_id as modify_user_login_id,
+            ui.modify_datetime
+        from
+            upload_inventory ui
+            inner join user_access ua
+                on ui.regist_user_id = ua.user_id
+            inner join user_access ua2
+                on ui.modify_user_id = ua2.user_id
+        where
+            ui.project_id = #{projectId}
+          and ui.delete_yn = 'N'
+        order by ui.upload_inventory_id desc
+    </select>
+
+    <select id="selectInventoryDatabaseCount" parameterType="Map" resultType="io.playce.roro.common.dto.inventory.inventory.InventoryCountResponse">
+        SELECT
+            COUNT(*) AS `count`,
+            (SELECT COUNT(*)
+             FROM discovered_instance_master dim
+             WHERE dim.delete_yn = 'N'
+               AND dim.possession_inventory_id IS NULL
+               AND dim.project_id = #{projectId}
+               AND dim.inventory_type_code = 'DBMS') AS discovered_count,
+            #{inventoryTypeCode} as inventory_type_code
+        FROM
+            (
+                -- Server Iventory Information
+                SELECT
+                    sim.project_id,
+                    sm.server_inventory_id
+                FROM
+                    INVENTORY_MASTER sim
+                    INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si
+                INNER JOIN (
+                -- Database Inventory Information
+                SELECT
+                    dim.project_id,
+                    dm.database_inventory_id,
+                    dim.server_inventory_id,
+                    dim.credential_id
+                FROM
+                    INVENTORY_MASTER dim
+                    INNER JOIN DATABASE_MASTER dm ON dm.database_inventory_id = dim.inventory_id AND dim.inventory_type_code ='DBMS' AND dim.delete_yn = 'N'
+            ) di ON di.project_id = si.project_id AND di.server_inventory_id = si.server_inventory_id
+                INNER JOIN (
+                -- Service Information
+                SELECT
+                    si.inventory_id
+                     , sm.service_id
+                FROM
+                    SERVICE_MASTER sm
+                    INNER JOIN SERVICE_INVENTORY si ON sm.service_id = si.service_id AND sm.delete_yn = 'N'
+                GROUP BY
+                    inventory_id
+            ) sm ON sm.inventory_id = di.database_inventory_id
+        WHERE
+            si.project_id = #{projectId}
+    </select>
+
+    <select id="selectInventoryCount" parameterType="Map" resultType="io.playce.roro.common.dto.inventory.inventory.InventoryCountResponse">
+        SELECT
+            COUNT(*) AS `count`,
+            (
+            SELECT
+                count(*)
+            from
+                discovered_instance_master dim
+                    INNER JOIN discovered_port_relation dpr
+                        on dpr.target_ip_address = dim.discovered_ip_address
+                            and dim.inventory_type_code = #{inventoryTypeCode}
+                            and dim.possession_inventory_id is null
+                            and dim.delete_yn = 'N'
+                            and dim.project_id = #{projectId}
+                    INNER JOIN inventory_master im
+                        on im.inventory_id = dpr.server_inventory_id
+                            and im.delete_yn = 'N'
+                            and im.project_id = #{projectId}
+            ) AS discovered_count,
+            #{inventoryTypeCode} as inventory_type_code
+        FROM
+            (
+            SELECT
+                sm.server_inventory_id
+            FROM
+                server_master sm
+                LEFT JOIN INVENTORY_MASTER im on sm.server_inventory_id = im.inventory_id
+                LEFT JOIN service_inventory si on im.inventory_id = si.inventory_id
+                INNER JOIN credential_master cm on im.credential_id = cm.credential_id
+                INNER JOIN user_access ua on im.regist_user_id = ua.user_id
+                INNER JOIN user_access ua2 on im.modify_user_id = ua2.user_id
+            WHERE
+                im.delete_yn = 'N'
+                AND im.project_id = #{projectId}
+            GROUP BY sm.server_inventory_id
+            ) s
+    </select>
+
+    <select id="selectInventoryResourceCountByServiceId" parameterType="Map"
+            resultType="io.playce.roro.common.dto.inventory.inventory.InventoryResourceCount">
+        SELECT
+             COUNT(CASE WHEN im.INVENTORY_TYPE_CODE = 'APP' THEN 1 END) AS applicationCount
+             , COUNT(CASE WHEN im.INVENTORY_TYPE_CODE = 'DBMS' THEN 1 END) AS databaseCount
+             , COUNT(CASE WHEN im.INVENTORY_TYPE_CODE = 'MW' THEN 1 END) AS middlewareCount
+             , COUNT(CASE WHEN im.INVENTORY_TYPE_CODE = 'SVR' THEN 1 END) AS serverCount
+        FROM
+            service_inventory si
+                inner join inventory_master im on si.INVENTORY_ID = im.INVENTORY_ID
+        WHERE
+                si.SERVICE_ID = #{serviceId} AND
+                im.PROJECT_ID = #{projectId} AND
+                im.DELETE_YN = 'N'
+    </select>
+
+    <select id="selectInventoryResourceCountByDiscDefaultName" parameterType="Map"
+            resultType="Long">
+        SELECT
+             COUNT(*) as result
+
+        FROM inventory_master
+
+        WHERE
+            PROJECT_ID = #{projectId} AND
+            CUSTOMER_INVENTORY_CODE LIKE CONCAT(#{search}, '%')
+    </select>
+</mapper>

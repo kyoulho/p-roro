@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.common.label.LabelMapper">
+
+    <select id="getServiceLabelNames" resultType="String">
+        SELECT lm.label_name
+          FROM label_master lm LEFT JOIN service_label sl
+            ON lm.label_id = sl.label_id
+         WHERE sl.service_id = #{serviceId}
+         GROUP BY lm.label_name
+    </select>
+
+    <select id="getServiceLabelList" resultType="io.playce.roro.common.dto.common.label.Label$LabelResponse">
+        SELECT lm.label_id,
+               lm.label_name
+          FROM label_master lm LEFT JOIN service_label sl
+            ON lm.label_id = sl.label_id
+         WHERE sl.service_id = #{serviceId}
+         GROUP BY lm.label_name
+    </select>
+
+    <select id="getInventoryLabelList" resultType="io.playce.roro.common.dto.common.label.Label$LabelResponse">
+        SELECT lm.label_id,
+               lm.label_name
+          FROM label_master lm LEFT JOIN inventory_label il
+            ON lm.label_id = il.label_id
+         WHERE il.inventory_id = #{inventoryId}
+         GROUP BY lm.label_name
+    </select>
+
+    <select id="selectLabel" resultType="io.playce.roro.common.dto.common.label.Label$LabelDetailResponse">
+        select lm.label_id,
+               lm.label_name as label,
+               lm.regist_user_id,
+               lm.regist_datetime,
+               lm.modify_user_id,
+               lm.modify_datetime,
+               il.inventory_id
+        from
+            label_master lm
+                right outer join inventory_label il
+                 on lm.label_id = il.label_id
+        where
+            il.inventory_id = #{inventoryId}
+    </select>
+
+    <select id="selectLabelsByKeyword" resultType="io.playce.roro.common.dto.common.label.Label$LabelDetailResponse">
+        select lm.label_id,
+               lm.label_name,
+               lm.regist_datetime,
+               lm.modify_datetime,
+               ua.user_login_id as regist_user_login_id,
+               ua2.user_login_id as modify_user_login_id
+        from
+            label_master lm
+            inner join user_access ua on lm.regist_user_id = ua.user_id
+            inner join user_access ua2 on lm.modify_user_id = ua2.user_id
+        where
+            1=1
+            <if test="keyword != null">
+                AND label_name LIKE CONCAT('%',#{keyword},'%')
+            </if>
+    </select>
+
+</mapper>

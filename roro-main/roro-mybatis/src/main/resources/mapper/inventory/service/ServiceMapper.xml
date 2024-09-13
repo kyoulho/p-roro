@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.service.ServiceMapper">
+
+    <select id="getServiceSummaries" resultType="io.playce.roro.common.dto.inventory.service.Service">
+        SELECT sm.service_id
+               , sm.service_name
+               , sm.customer_service_code
+          FROM service_master sm LEFT JOIN service_inventory si
+            ON sm.service_id = si.service_id
+         WHERE sm.delete_yn = 'N'
+           AND si.inventory_id = #{inventoryId}
+         GROUP BY si.service_id
+    </select>
+
+    <select id="selectServiceByInventoryId" parameterType="Long"
+            resultType="io.playce.roro.common.dto.inventory.service.ServiceResponse">
+        select sm.service_id,
+               sm.service_name,
+               sm.business_category_code,
+               sm.business_category_name,
+               sm.customer_service_code,
+               sm.customer_service_name,
+               sm.migration_target_yn,
+               sm.migration_man_month,
+               sm.migration_env_config_start_datetime,
+               sm.migration_env_config_end_datetime,
+               sm.migration_test_start_datetime,
+               sm.migration_test_end_datetime,
+               sm.migration_cut_over_datetime,
+               sm.severity
+        from
+            service_master sm
+            right outer join service_inventory si
+                on sm.service_id = si.service_id
+        where
+            si.inventory_id = #{inventoryId}
+            and sm.delete_yn = 'N'
+    </select>
+
+    <select id="selectServiceByServiceId" parameterType="Long"
+            resultType="io.playce.roro.common.dto.inventory.service.ServiceResponse">
+        select sm.service_id,
+               sm.service_name,
+               sm.business_category_code,
+               sm.business_category_name,
+               sm.customer_service_code,
+               sm.customer_service_name,
+               sm.migration_target_yn,
+               sm.migration_man_month,
+               sm.migration_env_config_start_datetime,
+               sm.migration_env_config_end_datetime,
+               sm.migration_test_start_datetime,
+               sm.migration_test_end_datetime,
+               sm.migration_cut_over_datetime,
+               sm.severity
+        from
+            service_master sm
+        where
+            sm.service_id = #{serviceId}
+    </select>
+
+    <select id="selectServiceList" parameterType="long"
+            resultType="io.playce.roro.common.dto.inventory.service.ServiceDetail">
+        select
+            sm.regist_user_id,
+            ua.user_login_id as regist_user_login_id,
+            sm.regist_datetime,
+            sm.modify_user_id,
+            ua2.user_login_id as modify_user_login_id,
+            sm.modify_datetime,
+            sm.project_id,
+            sm.service_id,
+            sm.service_name,
+            sm.customer_service_code,
+            sm.customer_service_name,
+            sm.business_category_code,
+            sm.business_category_name,
+            sm.migration_target_yn,
+            sm.migration_man_month,
+            sm.migration_env_config_start_datetime,
+            sm.migration_env_config_end_datetime,
+            sm.migration_test_start_datetime,
+            sm.migration_test_end_datetime,
+            sm.migration_cut_over_datetime,
+            sm.severity,
+            sm.description,
+            sp.survey_process_result_code,
+            sp.survey_process_id
+        from
+            service_master sm
+            inner join user_access ua on sm.regist_user_id = ua.user_id
+            inner join user_access ua2 on sm.modify_user_id = ua2.user_id
+            left join survey_process sp on sp.service_id = sm.service_id
+        where
+            sm.project_id = #{projectId}
+            and sm.delete_yn = 'N'
+        order by
+            sm.service_id desc
+    </select>
+
+    <select id="selectService" parameterType="long"
+            resultType="io.playce.roro.common.dto.inventory.service.ServiceDetail">
+        select
+            sm.regist_user_id,
+            ua.user_login_id as regist_user_login_id,
+            sm.regist_datetime,
+            sm.modify_user_id,
+            ua2.user_login_id as modify_user_login_id,
+            sm.modify_datetime,
+            sm.project_id,
+            sm.service_id,
+            sm.service_name,
+            sm.customer_service_code,
+            sm.customer_service_name,
+            sm.business_category_code,
+            sm.business_category_name,
+            sm.migration_target_yn,
+            sm.migration_man_month,
+            sm.migration_env_config_start_datetime,
+            sm.migration_env_config_end_datetime,
+            sm.migration_test_start_datetime,
+            sm.migration_test_end_datetime,
+            sm.migration_cut_over_datetime,
+            sm.severity,
+            sm.description,
+            sp.survey_process_result_code
+        from
+            service_master sm
+            inner join user_access ua on sm.regist_user_id = ua.user_id
+            inner join user_access ua2 on sm.modify_user_id = ua2.user_id
+            left join survey_process sp on sp.service_id = sm.service_id
+        where
+            sm.project_id = #{projectId}
+            and sm.service_id = #{serviceId}
+            and sm.delete_yn = 'N'
+    </select>
+
+    <select id="selectServiceManagerList" parameterType="long"
+            resultType="io.playce.roro.common.dto.inventory.manager.Manager">
+        select
+            um.user_id,
+            sm.manager_type_code
+        from
+             service_manager sm
+             inner join user_master um on sm.user_id = um.user_id
+        where
+            sm.service_id = #{projectId}
+    </select>
+
+    <select id="getDatasources" resultType="Map">
+        SELECT
+            im.project_id,
+            im.inventory_id,
+            dii.discovered_instance_interface_id,
+            dii.discovered_instance_interface_detail_type_code,
+            dii.descriptors_name,
+            dii.full_descriptors,
+            diii.discovered_instance_interface_ip_address AS server_ip,
+            diii.service_name,
+            (select di.USER_NAME
+               from DISCOVERED_INSTANCE_MASTER dim2 INNER JOIN DATABASE_INSTANCE di ON dim2.discovered_instance_id = di.database_instance_id
+              where dim2.delete_yn ='N'
+                and dim2.project_id = im.project_id
+                and di.database_service_name = dii.descriptors_name
+                and di.JDBC_URL = dii.full_descriptors
+              limit 1) as user_name
+        FROM
+            INVENTORY_MASTER im
+            INNER JOIN SERVICE_INVENTORY si on im.inventory_id = si.inventory_id
+            INNER JOIN DISCOVERED_INSTANCE_MASTER dim ON dim.possession_inventory_id = im.inventory_id
+            INNER JOIN DISCOVERED_INSTANCE_INTERFACE dii ON dii.discovered_instance_interface_id = dim.discovered_instance_id
+            LEFT JOIN DISCOVERED_INSTANCE_INTERFACE_IPS diii ON diii.discovered_instance_interface_id = dii.discovered_instance_interface_id
+                AND diii.discovered_instance_interface_seq = dii.discovered_instance_interface_seq
+        WHERE
+            im.project_id = #{projectId}
+            AND si.service_id = #{serviceId}
+    </select>
+
+</mapper>

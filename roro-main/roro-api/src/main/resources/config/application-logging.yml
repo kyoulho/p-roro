@@ -1,0 +1,23 @@
+logging:
+  level:
+    root: error
+    io.playce.roro: debug
+    io.playce.roro.mybatis: info
+    io.playce.roro.common.util.SSHUtil: debug
+
+    jdbc:
+      ##    delete query logging  - default
+      sqlonly: error
+      resultsettable: error
+
+##    if you needed query logging.
+#      sqlonly: info         # query logging
+#      sqltiming: info       # query time
+#      resultsettable: info  # qeury result
+
+  file:
+    name: /tmp/roro/playce-roro.log
+  logback:
+    rollingpolicy:
+      max-history: 30
+      max-file-size: 100MB

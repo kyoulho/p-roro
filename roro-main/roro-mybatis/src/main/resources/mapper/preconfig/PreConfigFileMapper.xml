@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.preconfig.PreConfigFileMapper">
+    <select id="getPreConfigFiles" resultType="io.playce.roro.common.dto.preconfig.PreConfigFileResponse">
+        SELECT mpcf.sequence
+               , mpcf.source
+               , mpcf.target
+               , mpcf.type
+               , mpcf.size
+               , mpcf.owner_user
+               , mpcf.owner_group
+          FROM migration_pre_config_file mpcf
+         WHERE mpcf.migration_pre_config_id = #{preConfigId}
+    </select>
+</mapper>

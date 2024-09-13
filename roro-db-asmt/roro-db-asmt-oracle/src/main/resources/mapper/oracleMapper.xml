@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.oracle">
+
+    <sql id="userList">
+        username NOT IN ('ANONYMOUS', 'APEX_030200', 'APEX_040200', 'APEX_PUBLIC_USER', 'APPQOSSYS', 'AUDSYS', 'CLOUD_ENGINE_USER', 'CLOUD_SWLIB_USER', 'CTXSYS',
+            'DBSNMP', 'DIP', 'DMSYS', 'EXFSYS', 'DVF', 'DVSYS', 'FLOWS_030000', 'FLOWS_FILES', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER',
+            'LBACSYS', 'MDDATA', 'MDSYS', 'MGMT_VIEW', 'OJVMSYS', 'OLAPSYS', 'ORDDATA', 'ORDPLUGINS', 'ORACLE_OCM', 'ORDSYS', 'OUTLN', 'OWBSYS',
+            'SCOTT', 'SI_INFORMTN_SCHEMA', 'SPATIAL_CSW_ADMIN_USR', 'SPATIAL_WFS_ADMIN_USR', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSMAN', 'SYSMAN_APM',
+            'SYSMAN_MDS', 'SYSMAN_OPSS', 'SYSMAN_RO', 'SYSTEM', 'TSMSYS', 'OWBSYS_AUDIT', 'WKPROXY', 'WKSYS', 'WK_TEST', 'WMSYS', 'XDB', 'XS$NULL')
+    </sql>
+
+    <select id="selectInstance" resultType="io.playce.roro.db.asmt.oracle.dto.Instance">
+        SELECT
+            host_name,
+            version,
+            startup_time,
+            status,
+            database_status,
+            instance_role
+        FROM
+            v$instance
+        WHERE
+            ROWNUM = 1
+    </select>
+
+    <select id="selectDbSize" resultType="Long">
+        SELECT
+            SUM(db_size_mb) as db_size_mb
+        FROM (
+            SELECT
+                SUM(bytes)/1024/1024 AS db_size_mb
+            FROM
+                dba_segments
+            WHERE
+                owner NOT IN ('ANONYMOUS', 'APEX_030200', 'APEX_040200', 'APEX_PUBLIC_USER', 'APPQOSSYS', 'AUDSYS', 'CLOUD_ENGINE_USER', 'CLOUD_SWLIB_USER', 'CTXSYS',
+                    'DBSNMP', 'DIP', 'DMSYS', 'EXFSYS', 'DVF', 'DVSYS', 'FLOWS_030000', 'FLOWS_FILES', 'GSMADMIN_INTERNAL', 'GSMCATUSER', 'GSMUSER',
+                    'LBACSYS', 'MDDATA', 'MDSYS', 'MGMT_VIEW', 'OJVMSYS', 'OLAPSYS', 'ORDDATA', 'ORDPLUGINS', 'ORACLE_OCM', 'ORDSYS', 'OUTLN', 'OWBSYS',
+                    'SCOTT', 'SI_INFORMTN_SCHEMA', 'SPATIAL_CSW_ADMIN_USR', 'SPATIAL_WFS_ADMIN_USR', 'SYS', 'SYSBACKUP', 'SYSDG', 'SYSKM', 'SYSMAN', 'SYSMAN_APM',
+                    'SYSMAN_MDS', 'SYSMAN_OPSS', 'SYSMAN_RO', 'SYSTEM', 'TSMSYS', 'OWBSYS_AUDIT', 'WKPROXY', 'WKSYS', 'WK_TEST', 'WMSYS', 'XDB', 'XS$NULL')
+            GROUP BY
+                owner
+            )
+    </select>
+
+    <select id="selectSga" resultType="io.playce.roro.db.asmt.oracle.dto.SgaTemp">
+        SELECT
+            name,
+            value
+        FROM
+            v$sga
+        UNION
+        SELECT
+            'total_size_mb' AS name,
+            value
+        FROM
+            (SELECT SUM(value)/ 1024 / 1024 AS value FROM v$sga) s
+    </select>
+
+    <select id="selectDataFile" resultType="io.playce.roro.db.asmt.oracle.dto.DataFile">
+        SELECT
+            file_id,
+            file_name,
+            tablespace_name,
+            size_mb,
+            free_mb,
+            max_size_mb,
+            max_free_mb,
+            autoextensible,
+            increment_by,
+            status,
+            online_status,
+            TRUNC((max_free_mb / max_size_mb) * 100) AS free_pct,
+            100 - TRUNC((max_free_mb / max_size_mb) * 100) AS used_pct
+        FROM
+            (
+                SELECT
+                    b.file_id,
+                    b.file_name,
+                    a.tablespace_name,
+                    b.size_mb,
+                    a.free_mb,
+                    b.max_size_mb,
+                    b.autoextensible,
+                    b.increment_by,
+                    b.status,
+                    b.online_status,
+                    a.free_mb + (b.max_size_mb - b.size_mb) AS max_free_mb
+                FROM
+                    (
+                        SELECT
+                            tablespace_name,
+                            TRUNC(SUM(bytes)/ 1024 / 1024) AS free_mb
+                        FROM
+                            dba_free_space
+                        GROUP BY
+                            tablespace_name) a
+                        INNER JOIN (
+                        SELECT
+                            file_id,
+                            file_name,
+                            tablespace_name,
+                            autoextensible,
+                            increment_by,
+                            status,
+                            online_status,
+                            ROUND(bytes / 1024 / 1024) AS size_mb,
+                            ROUND(GREATEST(bytes, maxbytes)/ 1024 / 1024) AS max_size_mb
+                        FROM
+                            dba_data_files) b ON
+                        (a.tablespace_name = b.tablespace_name))
+        ORDER BY
+            free_pct
+    </select>
+
+    <select id="selectControlFile" resultType="io.playce.roro.db.asmt.oracle.dto.ControlFile">
+        SELECT
+            name,
+            status
+        FROM
+            v$controlfile
+    </select>
+
+    <select id="selectLogFile" resultType="io.playce.roro.db.asmt.oracle.dto.LogFile">
+        SELECT
+            l.status,
+            l.archived,
+            lf.type,
+            lf.group# AS group_id,
+            lf.member AS name,
+            TRUNC(l.bytes / 1024 / 1024) AS size_mb,
+            lf.is_recovery_dest_file AS rdf,
+            l.sequence# AS SEQUENCE,
+            l.first_change# AS first_change
+        FROM
+            v$logfile lf
+            INNER JOIN v$log l ON l.group# = lf.group#
+    </select>
+
+    <select id="selectTableSpace" resultType="io.playce.roro.db.asmt.oracle.dto.TableSpace">
+        SELECT
+            tablespace_name,
+            block_size,
+            extent_management,
+            allocation_type,
+            segment_space_management,
+            status,
+            (SELECT dbms_metadata.get_ddl('TABLESPACE', tablespace_name) FROM dual) AS ddl_script
+        FROM
+            dba_tablespaces
+        ORDER BY
+            tablespace_name
+    </select>
+
+    <select id="selectParameter" resultType="io.playce.roro.db.asmt.oracle.dto.Parameter">
+        SELECT
+            name,
+            value,
+            display_value,
+            description,
+            (CASE
+                 WHEN TYPE = 1 THEN 'boolean'
+                 WHEN TYPE = 2 THEN 'string'
+                 WHEN TYPE = 3 THEN 'integer'
+                 WHEN TYPE = 4 THEN 'file'
+                 WHEN TYPE = 5 THEN 'reserved'
+                 WHEN TYPE = 6 THEN 'big integer'
+                 ELSE 'Unknown'
+                END) AS TYPE
+        FROM
+            v$parameter
+    </select>
+
+    <select id="selectSegment" resultType="io.playce.roro.db.asmt.oracle.dto.SegmentTemp">
+        SELECT
+            segment_type AS name,
+            SUM(bytes) AS value
+        FROM
+            dba_segments
+        GROUP BY
+            segment_type
+        UNION
+        SELECT
+            'total_size_mb' AS name,
+            s.value
+        FROM
+            (SELECT
+                 SUM(bytes / 1024 / 1024) AS value
+             FROM
+                 dba_segments) s
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.oracle.dto.User">
+        SELECT
+            username,
+            account_status,
+            lock_date,
+            expiry_date,
+            default_tablespace,
+            temporary_tablespace,
+            created,
+            profile,
+            (
+                SELECT
+                    SUBSTR(SYS_CONNECT_BY_PATH (granted_role , ','), 2)
+                FROM
+                    (
+                        SELECT
+                            granted_role,
+                            ROW_NUMBER () OVER ( ORDER BY granted_role) rn,
+                            COUNT(*) OVER () cnt
+                        FROM
+                            dba_role_privs
+                        WHERE
+                            (grantee = USER)
+                    )
+                WHERE
+                    (rn = cnt)
+                    START WITH rn = 1 CONNECT BY rn = PRIOR rn + 1) AS roles
+        FROM
+            dba_users
+        WHERE
+            <include refid="userList" />
+        ORDER BY
+            username
+    </select>
+
+    <select id="selectPublicSynonym" resultType="io.playce.roro.db.asmt.oracle.dto.PublicSynonym">
+        SELECT
+            owner,
+            synonym_name,
+            table_owner,
+            table_name,
+            db_link,
+            (SELECT dbms_metadata.get_ddl('SYNONYM',synonym_name,owner) FROM dual) AS ddl_script
+        FROM
+            dba_synonyms
+        WHERE
+            owner = 'PUBLIC'
+            AND table_owner IN (
+                    SELECT
+                        username
+                    FROM
+                        dba_users
+                    WHERE
+                        <include refid="userList" />
+            )
+
+    </select>
+
+    <select id="selectDbLink" resultType="io.playce.roro.db.asmt.oracle.dto.DbLink">
+        SELECT
+            owner,
+            db_link,
+            username,
+            host,
+            created,
+            (SELECT dbms_metadata.get_ddl('DB_LINK', db_link,owner) FROM dual) AS ddl_script
+        FROM
+            dba_db_links
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.oracle.dto.Database">
+        SELECT
+            dbid,
+            name,
+            created,
+            open_mode,
+            database_role,
+            db_unique_name
+        FROM
+            v$database
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.oracle.dto.Database">
+        SELECT
+            dbid,
+            name,
+            created,
+            open_mode,
+            database_role,
+            db_unique_name
+        FROM
+            v$database
+        WHERE
+            name = #{databaseName}
+    </select>
+
+    <select id="selectObjectSummary" resultType="io.playce.roro.db.asmt.oracle.dto.ObjectSummary">
+        SELECT
+            owner,
+            object_type,
+            COUNT(*) AS object_count
+        FROM
+            dba_objects
+        GROUP BY
+            owner, object_type
+        ORDER BY
+            owner, object_type
+    </select>
+
+    <select id="selectTable" resultType="io.playce.roro.db.asmt.oracle.dto.Table">
+        SELECT
+            t.owner,
+            t.table_name,
+            t.tablespace_name,
+            t.status,
+            t.num_rows,
+            t.blocks,
+            t.partitioned,
+            (
+                SELECT
+                    dbms_metadata.get_ddl('TABLE', u.table_name, u.owner)
+                FROM
+                    dba_tables u
+                WHERE
+                    u.table_name = t.table_name
+                    AND u.owner = t.owner
+                    AND u.nested = 'NO'
+                    AND u.iot_name IS NULL
+            ) AS ddl_script,
+            (
+                SELECT
+                    SUBSTR(SYS_CONNECT_BY_PATH (privilege , ','), 2)
+                FROM
+                    (
+                        SELECT
+                            tp.privilege,
+                            ROW_NUMBER () OVER (ORDER BY tp.privilege) rn,
+                            COUNT(*) OVER () cnt
+                        FROM
+                            dba_tab_privs tp
+                            INNER JOIN dba_tables t1 ON tp.owner = t1.OWNER
+                        WHERE
+                            tp.table_name = t1.table_name
+                            AND tp.owner = t1.owner
+                            AND t1.owner IN (
+                                SELECT
+                                    username
+                                FROM
+                                    dba_users
+                                WHERE
+                                    <include refid="userList" />
+                                )
+                        GROUP BY
+                            privilege
+                    )
+                WHERE
+                    (rn = cnt) START WITH rn = 1 CONNECT BY rn = PRIOR rn + 1
+            ) AS privilege,
+            (
+                SELECT
+                    s.bytes / 1024 / 1024 size_mb
+                FROM
+                    dba_segments s
+                WHERE
+                    s.segment_type = 'TABLE'
+                    AND s.segment_name = t.table_name
+                    AND s.owner = t.owner
+            ) AS size_mb
+        FROM
+            dba_tables t
+        WHERE
+            t.owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+    </select>
+
+    <select id="selectView" resultType="io.playce.roro.db.asmt.oracle.dto.View">
+        SELECT
+            owner,
+            view_name,
+            (SELECT dbms_metadata.get_ddl('VIEW',view_name,owner) FROM dual) AS ddl_script
+        FROM
+            dba_views
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+    </select>
+
+    <select id="selectMaterializedView" resultType="io.playce.roro.db.asmt.oracle.dto.MaterializedView">
+        SELECT
+            owner,
+            mview_name,
+            container_name,
+            updatable,
+            rewrite_enabled,
+            rewrite_capability,
+            refresh_mode,
+            refresh_method,
+            build_mode,
+            fast_refreshable,
+            staleness,
+            compile_state,
+            (SELECT dbms_metadata.get_ddl('MATERIALIZED_VIEW', mview_name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_mviews
+        WHERE
+             owner IN (
+                 SELECT
+                     username
+                 FROM
+                     dba_users
+                 WHERE
+                    <include refid="userList" />
+                 )
+        ORDER BY
+            owner
+    </select>
+
+    <select id="selectIndex" resultType="io.playce.roro.db.asmt.oracle.dto.Index">
+        SELECT
+            i.owner,
+            i.index_name,
+            i.index_type,
+            i.table_owner,
+            i.table_name,
+            i.uniqueness,
+            i.tablespace_name,
+            i.status,
+            i.num_rows,
+            i.partitioned,
+            (SELECT dbms_metadata.get_ddl('INDEX', index_name, owner) FROM dual) AS ddl_script,
+            (SELECT
+                 s.bytes / 1024 / 1024 size_mb
+             FROM
+                 user_segments s
+             WHERE
+                 s.segment_type = 'INDEX'
+                 AND s.segment_name = i.index_name) AS size_mb
+        FROM
+            dba_indexes i
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+    </select>
+
+    <select id="selectProcedure" resultType="io.playce.roro.db.asmt.oracle.dto.Procedure">
+        SELECT
+            t.owner,
+            t.status,
+            t.object_name AS procedure_name,
+        <![CDATA[
+            regexp_replace(replace(replace(replace(replace(replace(replace(replace(
+                SUBSTR(XMLAGG(XMLELEMENT(t, '', t.ddl_script) ORDER BY t.line).EXTRACT('//text()').getclobval(), 1)
+                ,'&'||'lt;','<')
+                ,'&'||'gt;','>')
+                ,'&'||'apos;', chr(39))
+                ,'&'||'quot;','"')
+                ,'&'||'amp;','&')
+                ,'&'||'num;','#')
+                ,'&'||'semi;',';')
+                , '<[^>]*>' ,'' ) AS ddl_script
+        ]]>
+        FROM (
+            SELECT
+                o.owner,
+                o.status,
+                o.object_name,
+                s.line,
+                TO_CLOB(decode(s.line, 1, 'Create or replace ', '')) || s.text ||
+                    decode(s.line,mcts.maxline,
+                    decode(substr(s.text, length(s.text), 1), '', '', '') || '', '') AS ddl_script
+            FROM
+                (SELECT
+                    name AS nom,
+                    type,
+                    max(line) maxline
+                FROM
+                    dba_source
+                    GROUP BY name, type ) mcts
+                    INNER JOIN dba_source s ON mcts.nom = s.name AND mcts.type = s.type
+                    INNER JOIN dba_objects o ON s.name = o.object_name AND s.type = o.object_type
+            WHERE
+                o.object_type = 'PROCEDURE'
+                AND o.owner IN (
+                    SELECT
+                        username
+                    FROM
+                        dba_users
+                    WHERE
+                        <include refid="userList" />
+                )
+            ORDER BY
+                s.name, s.type, s.line
+        ) t
+        GROUP BY
+            t.owner, t.status, t.object_name
+    </select>
+
+    <select id="selectPackage" resultType="io.playce.roro.db.asmt.oracle.dto.Package">
+        SELECT
+            t.owner,
+            t.status,
+            t.object_name AS package_name,
+        <![CDATA[
+            regexp_replace(replace(replace(replace(replace(replace(replace(replace(
+                SUBSTR(XMLAGG(XMLELEMENT(t, '', t.ddl_script) ORDER BY t.line).EXTRACT('//text()').getclobval(), 1)
+                ,'&'||'lt;','<')
+                ,'&'||'gt;','>')
+                ,'&'||'apos;', chr(39))
+                ,'&'||'quot;','"')
+                ,'&'||'amp;','&')
+                ,'&'||'num;','#')
+                ,'&'||'semi;',';')
+                , '<[^>]*>' ,'' ) AS ddl_script
+        ]]>
+        FROM (
+            SELECT
+                o.owner,
+                o.status,
+                o.object_name,
+                s.line,
+                TO_CLOB(decode(s.line, 1, 'Create or replace ', '')) || s.text ||
+                    decode(s.line,mcts.maxline,
+                    decode(substr(s.text, length(s.text), 1), '', '', '') || '', '') AS ddl_script
+            FROM
+                (SELECT
+                    name AS nom,
+                    type,
+                    max(line) maxline
+                FROM
+                    dba_source
+                GROUP BY
+                    name, type ) mcts
+                INNER JOIN dba_source s ON mcts.nom = s.name AND mcts.type = s.type
+                INNER JOIN dba_objects o ON s.name = o.object_name AND s.type = o.object_type
+            WHERE
+                o.object_type = 'PACKAGE'
+                AND o.owner IN (
+                    SELECT
+                        username
+                    FROM
+                        dba_users
+                    WHERE
+                        <include refid="userList" />
+                )
+            ORDER BY
+                s.name, s.type, s.line
+        ) t
+        GROUP BY
+            t.owner, t.status, t.object_name
+    </select>
+
+    <select id="selectPackageBody" resultType="io.playce.roro.db.asmt.oracle.dto.PackageBody">
+        SELECT
+            t.owner,
+            t.status,
+            t.object_name AS package_body_name,
+        <![CDATA[
+            regexp_replace(replace(replace(replace(replace(replace(replace(replace(
+                SUBSTR(XMLAGG(XMLELEMENT(t, '', t.ddl_script) ORDER BY t.line).EXTRACT('//text()').getclobval(), 1)
+                ,'&'||'lt;','<')
+                ,'&'||'gt;','>')
+                ,'&'||'apos;', chr(39))
+                ,'&'||'quot;','"')
+                ,'&'||'amp;','&')
+                ,'&'||'num;','#')
+                ,'&'||'semi;',';')
+                , '<[^>]*>' ,'' ) AS ddl_script
+        ]]>
+        FROM (
+            SELECT
+                o.owner,
+                o.status,
+                o.object_name,
+                s.line,
+                TO_CLOB(decode(s.line, 1, 'Create or replace ', '')) || s.text ||
+                    decode(s.line,mcts.maxline,
+                    decode(substr(s.text, length(s.text), 1), '', '', '') || '', '') AS ddl_script
+            FROM
+                (SELECT
+                    name AS nom,
+                    type,
+                    max(line) maxline
+                FROM
+                    dba_source
+                    GROUP BY name, type ) mcts
+                INNER JOIN dba_source s ON mcts.nom = s.name AND mcts.type = s.type
+                INNER JOIN dba_objects o ON s.name = o.object_name AND s.type = o.object_type
+            WHERE
+                o.object_type = 'PACKAGE BODY'
+                AND o.owner IN (
+                    SELECT
+                        username
+                    FROM
+                        dba_users
+                    WHERE
+                        <include refid="userList" />
+                )
+            ORDER BY
+                s.name, s.type, s.line
+        ) t
+        GROUP BY
+            t.owner, t.status, t.object_name
+    </select>
+
+    <select id="selectFunction" resultType="io.playce.roro.db.asmt.oracle.dto.Function">
+        SELECT
+            t.owner,
+            t.status,
+            t.object_name AS function_name,
+        <![CDATA[
+            regexp_replace(replace(replace(replace(replace(replace(replace(replace(
+                SUBSTR(XMLAGG(XMLELEMENT(t, '', t.ddl_script) ORDER BY t.line).EXTRACT('//text()').getclobval(), 1)
+                ,'&'||'lt;','<')
+                ,'&'||'gt;','>')
+                ,'&'||'apos;', chr(39))
+                ,'&'||'quot;','"')
+                ,'&'||'amp;','&')
+                ,'&'||'num;','#')
+                ,'&'||'semi;',';')
+                , '<[^>]*>' ,'' ) AS ddl_script
+        ]]>
+        FROM (
+            SELECT
+                o.owner,
+                o.status,
+                o.object_name,
+                s.line,
+                TO_CLOB(decode(s.line, 1, 'Create or replace ', '')) || s.text ||
+                    decode(s.line,mcts.maxline,
+                    decode(substr(s.text, length(s.text), 1), '', '', '') || '', '') AS ddl_script
+            FROM
+                (SELECT
+                    name AS nom,
+                    type,
+                    max(line) maxline
+                FROM
+                    dba_source
+                    GROUP BY name, type ) mcts
+                INNER JOIN dba_source s ON mcts.nom = s.name AND mcts.type = s.type
+                INNER JOIN dba_objects o ON s.name = o.object_name AND s.type = o.object_type
+            WHERE
+                o.object_type = 'FUNCTION'
+                AND o.owner IN (
+                    SELECT
+                        username
+                    FROM
+                        dba_users
+                    WHERE
+                        <include refid="userList" />
+                )
+            ORDER BY
+                s.name, s.type, s.line
+        ) t
+        GROUP BY
+            t.owner, t.status, t.object_name
+    </select>
+
+    <select id="selectQueue" resultType="io.playce.roro.db.asmt.oracle.dto.Queue">
+        SELECT
+            owner,
+            name,
+            queue_table,
+            queue_type,
+            max_retries,
+            enqueue_enabled,
+            dequeue_enabled,
+            retention,
+            user_comment,
+            (SELECT dbms_metadata.get_ddl('AQ_QUEUE', name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_queues
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+
+    </select>
+
+    <select id="selectTrigger" resultType="io.playce.roro.db.asmt.oracle.dto.Trigger">
+        SELECT
+            owner,
+            trigger_name,
+            trigger_type,
+            triggering_event,
+            table_owner,
+            base_object_type,
+            table_name,
+            referencing_names,
+            when_clause,
+            action_type,
+            (SELECT dbms_metadata.get_ddl('TRIGGER', trigger_name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_triggers
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+
+    </select>
+
+    <select id="selectType" resultType="io.playce.roro.db.asmt.oracle.dto.Type">
+        SELECT
+            owner,
+            type_name,
+            typecode,
+            ATTRIBUTES,
+            methods,
+            predefined,
+            incomplete,
+            FINAL,
+            INSTANTIABLE,
+            (SELECT dbms_metadata.get_ddl('TYPE', type_name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_types d
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+    </select>
+
+    <select id="selectSequence" resultType="io.playce.roro.db.asmt.oracle.dto.Sequence">
+        SELECT
+            sequence_name,
+            min_value,
+            max_value,
+            increment_by,
+            cycle_flag,
+            order_flag,
+            cache_size,
+            last_number,
+            (SELECT dbms_metadata.get_ddl('SEQUENCE', s.sequence_name, s.SEQUENCE_OWNER) FROM dual) AS ddl_script,
+            s.SEQUENCE_OWNER AS owner
+        FROM
+            dba_sequences s
+        WHERE
+            sequence_name NOT LIKE '%$$%'
+            AND sequence_owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+    </select>
+
+    <select id="selectSynonym" resultType="io.playce.roro.db.asmt.oracle.dto.Synonym">
+        SELECT
+            owner,
+            synonym_name,
+            table_owner,
+            table_name,
+            db_link,
+            (SELECT dbms_metadata.get_ddl('SYNONYM', synonym_name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_synonyms
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+    </select>
+
+    <select id="selectJob" resultType="io.playce.roro.db.asmt.oracle.dto.Job">
+        SELECT
+            owner,
+            job_name,
+            job_creator,
+            program_owner,
+            program_name,
+            schedule_owner,
+            schedule_name,
+            schedule_type,
+            start_date,
+            event_queue_owner,
+            event_queue_name,
+            event_queue_agent,
+            event_condition,
+            event_rule,
+            state,
+            run_count,
+            failure_count,
+            last_start_date,
+            last_run_duration,
+            nls_env,
+            (SELECT dbms_metadata.get_ddl('PROCOBJ', job_name, owner) FROM dual) AS ddl_script
+        FROM
+            dba_scheduler_jobs d
+        WHERE
+            owner IN (
+                SELECT
+                    username
+                FROM
+                    dba_users
+                WHERE
+                    <include refid="userList" />
+                )
+        ORDER BY
+            owner
+    </select>
+
+</mapper>

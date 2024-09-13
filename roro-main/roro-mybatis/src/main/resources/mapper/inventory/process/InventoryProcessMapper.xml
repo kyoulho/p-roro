@@ -1,0 +1,714 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.process.InventoryProcessMapper">
+    <select id="selectLatestInventoryProcessByInventoryProcessType"
+            resultType="io.playce.roro.common.dto.inventory.process.LatestInventoryProcess">
+        select sm.server_inventory_id,
+               im.inventory_name as server_inventory_name,
+               ips.inventory_process_result_code,
+               sm.representative_ip_address,
+               sm.connection_port,
+               cm.user_name,
+               ipr.inventory_process_result_json as result_json
+        from inventory_master im
+         join server_master sm
+          on sm.server_inventory_id = im.inventory_id
+         join credential_master cm
+          on cm.credential_id = im.credential_id
+         left join (
+            select inventory_id,
+                   max(inventory_process_id) as inventory_process_id
+            from inventory_process
+            where delete_yn = 'N'
+              and inventory_process_type_code = #{inventoryProcessTypeCode}
+            group by inventory_id
+        ) ip on ip.inventory_id = im.inventory_id
+         left join inventory_process ips
+           on ips.inventory_process_id = ip.inventory_process_id
+         left join inventory_process_result ipr
+           on ipr.inventory_process_id = ip.inventory_process_id
+        where im.delete_yn = 'N'
+          and im.project_id = #{projectId}
+        order by 1 desc
+    </select>
+
+    <select id="selectInventoryProcessByInventoryProcessTypeAndDate"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessHistory">
+        select ipg.inventory_process_group_id,
+               ip.inventory_process_id,
+               im.inventory_type_code,
+               im.inventory_detail_type_code,
+               im.inventory_id,
+               im.inventory_name,
+               sm.representative_ip_address,
+               sm.connection_port,
+               cm.user_name,
+               ipr.inventory_process_result_json as result_json
+          from inventory_process ip
+          join inventory_process_group ipg
+            on ipg.inventory_process_group_id = ip.inventory_process_group_id
+          join inventory_master im
+            on ip.inventory_id = im.inventory_id
+          join server_master sm
+            on ip.inventory_id = sm.server_inventory_id
+          join credential_master cm
+            on cm.credential_id = im.credential_id
+          left join inventory_process_result ipr
+            on ip.inventory_process_Id = ipr.inventory_process_id
+         where ip.delete_yn = 'N'
+           and im.delete_yn = 'N'
+           and im.project_id = #{projectId}
+           and ip.inventory_process_type_code = #{inventoryProcessTypeCode}
+           and ip.inventory_process_end_datetime between #{from} and DATE_ADD(#{to}, INTERVAL 1 DAY)
+         order by ipg.inventory_process_group_id desc, ip.inventory_process_id desc
+    </select>
+
+    <select id="selectInventoryProcess" parameterType="Long"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcess">
+        select ip.inventory_process_id,
+               ip.inventory_process_group_id,
+               ip.inventory_id,
+               ip.inventory_process_type_code,
+               ip.inventory_process_result_code,
+               ip.inventory_process_result_txt,
+               ip.inventory_process_start_datetime,
+               ip.inventory_process_end_datetime,
+               ip.regist_user_id,
+               ip.regist_datetime,
+               ip.modify_user_id,
+               ip.modify_datetime
+        from
+            inventory_process ip
+        where
+            ip.inventory_id = #{inventoryId}
+    </select>
+
+    <select id="selectLastInventoryProcess" resultType="io.playce.roro.common.dto.inventory.process.InventoryProcess$Result">
+        SELECT ip.inventory_process_id
+             , ip.inventory_process_type_code
+             , ip.inventory_process_result_code
+             , ip.inventory_process_result_txt
+             , ipr.inventory_process_result_json_path
+             , ipr.inventory_process_result_excel_path
+             , ip.regist_datetime
+        FROM inventory_process ip LEFT JOIN inventory_process_result ipr
+                                            ON ip.inventory_process_id = ipr.inventory_process_id
+        WHERE ip.delete_yn = 'N'
+          AND ip.inventory_id = #{inventoryId}
+          AND ip.inventory_process_type_code = #{processType}
+        ORDER BY ip.inventory_process_id DESC
+            LIMIT 1
+    </select>
+
+    <select id="selectLastCompleteInventoryProcess" resultType="io.playce.roro.common.dto.inventory.process.InventoryProcess$CompleteScan">
+        SELECT ip.inventory_process_id
+             , ipr.inventory_process_result_json_path
+             , ipr.inventory_process_result_excel_path
+        FROM inventory_process ip LEFT JOIN inventory_process_result ipr
+                                            ON ip.inventory_process_id = ipr.inventory_process_id
+        WHERE ip.delete_yn = 'N'
+          AND ip.inventory_id = #{inventoryId}
+          AND ip.inventory_process_type_code = #{processType}
+          AND ip.inventory_process_result_code IN ('CMPL', 'PC')
+        ORDER BY ip.inventory_process_id DESC
+            LIMIT 1
+    </select>
+
+    <select id="selectInventoryProcessSummary"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessListResponse$Summary">
+        SELECT
+        COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'PEND' THEN 1 END) AS pending
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'PROC' THEN 1 END) AS inProcess
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'CMPL' THEN 1 END) AS completed
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'CNCL' THEN 1 END) AS cancelled
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'FAIL' THEN 1 END) AS failed
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'REQ' THEN 1 END) AS request
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'NS' THEN 1 END) AS notSupported
+        , COUNT(CASE WHEN INVENTORY_PROCESS_RESULT_CODE = 'PC' THEN 1 END) AS partiallyCompleted
+        FROM
+        inventory_process ip
+        inner join inventory_master im on ip.inventory_id = im.inventory_id
+        WHERE ip.delete_yn = 'N'
+        AND im.project_id = #{projectId}
+        <if test="inventoryId != null">
+            AND ip.inventory_id = #{inventoryId}
+        </if>
+        <if test="inventoryProcessTypeCode != null">
+            and ip.inventory_process_type_code = #{inventoryProcessTypeCode}
+        </if>
+    </select>
+
+    <select id="getInventoryProcessDetail"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessDetailResponse">
+        select im.project_id,
+               ip.inventory_process_id,
+               ip.inventory_process_group_id,
+               ip.inventory_id,
+               im.inventory_name,
+               im.inventory_type_code,
+               im.inventory_detail_type_code,
+               ip.inventory_process_type_code,
+               ip.inventory_process_result_code,
+               ip.inventory_process_result_txt,
+               ip.inventory_process_start_datetime,
+               ip.inventory_process_end_datetime,
+               ip.regist_datetime,
+               ua.user_login_id as regist_user_login_id,
+               ip.modify_datetime,
+               ua2.user_login_id as modify_user_login_id,
+               ipr.inventory_process_result_json,
+               ipr.inventory_process_result_meta_list,
+               ipr.inventory_process_result_json_path,
+               ipr.inventory_process_result_excel_path
+          from inventory_process ip
+          join inventory_master im
+            on ip.inventory_id = im.inventory_id
+          join user_access ua
+            on ip.regist_user_id = ua.user_id
+          join user_access ua2
+            on ip.modify_user_id = ua2.user_id
+          left join inventory_process_result ipr
+            on ip.inventory_process_id = ipr.inventory_process_id
+         where ip.inventory_process_id = #{inventoryProcessId}
+           and im.project_id = #{projectId}
+           and ip.delete_yn = 'N'
+    </select>
+    <select id="selectInventoryProcessQueueItems"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessQueueItem">
+        select ip.inventory_id,
+               ip.inventory_process_id,
+               im.inventory_name,
+               ip.inventory_process_type_code,
+               im.project_id,
+               im.inventory_type_code,
+               im.inventory_detail_type_code,
+               sm.windows_yn,
+               sm.os_version
+          from inventory_process ip
+          join inventory_master im
+            on im.inventory_id = ip.inventory_id
+          left join server_master sm
+            on im.inventory_id = sm.server_inventory_id
+         where im.delete_yn = 'N'
+           and ip.delete_yn = 'N'
+           and ip.inventory_process_type_code = #{domain1002}
+           and ip.inventory_process_result_code = #{domain1003}
+    </select>
+
+    <select id="selectInventoryProcessList"
+            resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessListResponse$Content">
+        select ip.regist_datetime,
+               ua.user_login_id as regist_user_login_id,
+               ip.modify_datetime,
+               ua2.user_login_id as modify_user_login_id,
+               im.project_id,
+               ip.inventory_process_group_id,
+               ip.inventory_process_id,
+               ip.inventory_process_type_code,
+               ip.inventory_id,
+               im.inventory_name,
+               im.inventory_type_code,
+               ip.inventory_process_result_code,
+               ip.inventory_process_result_txt,
+               -- ipr.inventory_process_result_json,
+               ipr.inventory_process_result_json_path,
+               ipr.inventory_process_result_excel_path,
+               ip.inventory_process_start_datetime,
+               ip.inventory_process_end_datetime,
+               IFNULL(sm.representative_ip_address,sm2.representative_ip_address) as representative_ip_address
+        from inventory_process ip
+            inner join inventory_master im on ip.inventory_id = im.inventory_id
+            left join server_master sm on im.SERVER_INVENTORY_ID = sm.SERVER_INVENTORY_ID
+            left join server_master sm2 on im.INVENTORY_ID = sm2.SERVER_INVENTORY_ID
+            inner join user_access ua on ip.regist_user_id = ua.user_id
+            inner join user_access ua2 on ip.modify_user_id = ua2.user_id
+            left join inventory_process_result ipr on ip.inventory_process_id = ipr.inventory_process_id
+        where
+        ip.delete_yn = 'N'
+        and im.project_id = #{projectId}
+        <if test='pageRequest.startDate != null and pageRequest.endDate != null'>
+            and ip.regist_datetime between #{pageRequest.startDate} and DATE_ADD(#{pageRequest.endDate}, INTERVAL 1 DAY)
+        </if>
+        <if test="inventoryId != null">
+            and ip.inventory_id = #{inventoryId}
+        </if>
+        <if test="inventoryProcessTypeCode != null">
+            and ip.inventory_process_type_code = #{inventoryProcessTypeCode}
+        </if>
+        <if test='pageRequest.resourceType != null and pageRequest.resourceType != "ALL"'>
+            and im.INVENTORY_TYPE_CODE = #{pageRequest.resourceType}
+        </if>
+        <if test='pageRequest.assessmentStatus != null and pageRequest.assessmentStatus != "ALL"'>
+            and ip.inventory_process_result_code = #{pageRequest.assessmentStatus}
+        </if>
+        <if test='pageRequest.keyword != null and pageRequest.keyword != ""'>
+            and (
+                im.inventory_name like CONCAT('%',#{pageRequest.keyword},'%')
+                or ua.user_login_id like CONCAT('%',#{pageRequest.keyword},'%')
+                or sm.REPRESENTATIVE_IP_ADDRESS like CONCAT('%',#{pageRequest.keyword},'%')
+                or sm2.REPRESENTATIVE_IP_ADDRESS like CONCAT('%',#{pageRequest.keyword},'%')
+                or ip.inventory_process_result_code like CONCAT('%',#{pageRequest.keyword},'%')
+                or ip.inventory_process_result_txt like CONCAT('%',#{pageRequest.keyword},'%')
+            )
+        </if>
+        order by ip.INVENTORY_PROCESS_ID DESC
+        <if test="pageRequest.isExcelDownload != true">
+            limit #{pageRequest.pageSize} offset #{pageRequest.pageNumber}
+        </if>
+    </select>
+
+    <select id="selectInventoryProcessCount"
+            resultType="Long">
+        select count(*)
+        from inventory_process ip
+            inner join inventory_master im on ip.inventory_id = im.inventory_id
+            left join server_master sm on im.SERVER_INVENTORY_ID = sm.SERVER_INVENTORY_ID
+            left join server_master sm2 on im.INVENTORY_ID = sm2.SERVER_INVENTORY_ID
+            inner join user_access ua on ip.regist_user_id = ua.user_id
+            inner join user_access ua2 on ip.modify_user_id = ua2.user_id
+            left join inventory_process_result ipr on ip.inventory_process_id = ipr.inventory_process_id
+        where
+        ip.delete_yn = 'N'
+        and im.project_id = #{projectId}
+        <if test='pageRequest.startDate != null and pageRequest.endDate != null'>
+            and ip.regist_datetime between #{pageRequest.startDate} and DATE_ADD(#{pageRequest.endDate}, INTERVAL 1 DAY)
+        </if>
+        <if test="inventoryId != null">
+            and ip.inventory_id = #{inventoryId}
+        </if>
+        <if test="inventoryProcessTypeCode != null">
+            and ip.inventory_process_type_code = #{inventoryProcessTypeCode}
+        </if>
+        <if test='pageRequest.resourceType != null and pageRequest.resourceType != "ALL"'>
+            and im.INVENTORY_TYPE_CODE = #{pageRequest.resourceType}
+        </if>
+        <if test='pageRequest.assessmentStatus != null and pageRequest.assessmentStatus != "ALL"'>
+            and ip.inventory_process_result_code = #{pageRequest.assessmentStatus}
+        </if>
+        <if test='pageRequest.keyword != null and pageRequest.keyword != ""'>
+            and (
+            im.inventory_name like CONCAT('%',#{pageRequest.keyword},'%')
+            or ua.user_login_id like CONCAT('%',#{pageRequest.keyword},'%')
+            or sm.REPRESENTATIVE_IP_ADDRESS like CONCAT('%',#{pageRequest.keyword},'%')
+            or sm2.REPRESENTATIVE_IP_ADDRESS like CONCAT('%',#{pageRequest.keyword},'%')
+            or ip.inventory_process_result_code like CONCAT('%',#{pageRequest.keyword},'%')
+            or ip.inventory_process_result_txt like CONCAT('%',#{pageRequest.keyword},'%')
+            )
+        </if>
+    </select>
+
+    <select id="selectInventoryProcessById" resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessResponse">
+        select
+            ip.inventory_process_id,
+            ip.inventory_process_group_id,
+            ip.inventory_id,
+            ip.inventory_process_type_code,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt,
+            ip.inventory_process_start_datetime,
+            ip.inventory_process_end_datetime,
+            ipr.inventory_process_result_json_path,
+            ipr.inventory_process_result_excel_path
+        from inventory_process ip
+        inner join inventory_process_result ipr
+            on ip.inventory_process_id = ipr.inventory_process_id
+        left join inventory_master im
+            on ip.inventory_id = im.inventory_id
+        where
+            ip.inventory_process_id = #{inventoryProcessId}
+    </select>
+
+    <select id="selectLastCompletedScanByInventoryId" resultType="io.playce.roro.common.dto.inventory.process.InventoryProcessResponse">
+        select
+            ip.inventory_process_id,
+            ip.inventory_process_group_id,
+            ip.inventory_id,
+            ip.inventory_process_type_code,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt,
+            ip.inventory_process_start_datetime,
+            ip.inventory_process_end_datetime,
+            ipr.inventory_process_result_json_path,
+            ipr.inventory_process_result_excel_path
+        from inventory_process ip
+        inner join inventory_process_result ipr
+            on ip.inventory_process_id = ipr.inventory_process_id
+        left join inventory_master im
+            on ip.inventory_id = im.inventory_id
+        where ip.delete_yn = 'N'
+            and im.inventory_type_code = #{inventoryTypeCode}
+            and ip.inventory_process_type_code = #{inventoryProcessTypeCode}
+            and ip.inventory_process_result_code IN ('CMPL', 'PC')
+            and im.inventory_id = #{inventoryId}
+        order by ip.inventory_process_id desc
+        limit 1;
+    </select>
+
+    <select id="selectMigrationServerDetailCount" resultType="Long">
+        SELECT
+            COUNT(*)
+        FROM
+            INVENTORY_PROCESS ip
+            LEFT JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            LEFT JOIN CREDENTIAL_MASTER cm ON cm.credential_id = imp.credential_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND im.inventory_id = #{inventoryId}
+        ORDER BY
+            ip.inventory_process_id DESC
+    </select>
+
+    <select id="selectMigrationServerDetailList" resultType="io.playce.roro.common.dto.migration.MigrationJobDto">
+        SELECT
+            ip.inventory_process_id,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt,
+            CASE
+                WHEN imp.credential_id IS NULL THEN  'Existing Linux'
+                ELSE 'Cloud Platform'
+                END AS credential_type_name,
+            cm.credential_type_code,
+            ip.inventory_process_start_datetime,
+            ip.inventory_process_end_datetime
+        FROM
+            INVENTORY_PROCESS ip
+            LEFT JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            LEFT JOIN CREDENTIAL_MASTER cm ON cm.credential_id = imp.credential_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND im.inventory_id = #{inventoryId}
+        ORDER BY
+            ip.inventory_process_id DESC
+    </select>
+
+    <select id="selectMigrationServerCount" resultType="Long">
+        SELECT
+            COUNT(*)
+        FROM
+            INVENTORY_PROCESS ip
+            LEFT JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            LEFT JOIN CREDENTIAL_MASTER cm ON cm.credential_id = imp.credential_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND ip.regist_datetime between #{pageRequest.startDate} and DATE_ADD(#{pageRequest.endDate}, INTERVAL 1 DAY)
+            <if test='pageRequest.targetPlatform != null and pageRequest.targetPlatform != "ALL"'>
+                <choose>
+                    <when test='pageRequest.targetPlatform == "GCP" or pageRequest.targetPlatform == "AWS"'>
+                        AND cm.credential_type_code = #{pageRequest.targetPlatform}
+                    </when>
+                    <when test='pageRequest.targetPlatform == "EL"'>
+                        AND imp.credential_id IS NULL
+                    </when>
+                </choose>
+            </if>
+            <if test='pageRequest.migrationStatus != null and pageRequest.migrationStatus != "ALL"'>
+                AND ip.inventory_process_result_code = #{pageRequest.migrationStatus}
+            </if>
+            <if test='pageRequest.keyword != null and pageRequest.keyword != ""'>
+                AND (
+                    im.inventory_name LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR sm.representative_ip_address LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR cm.credential_type_code LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.instance_name LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.public_ip LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.private_ip LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR ip.inventory_process_result_code LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR ip.inventory_process_result_txt LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                )
+            </if>
+    </select>
+
+    <select id="selectMigrationServerList" resultType="io.playce.roro.common.dto.migration.MigrationJobDto">
+        SELECT
+            ip.inventory_process_id,
+            im.inventory_name,
+            sm.representative_ip_address AS server_ip,
+            CASE
+                WHEN imp.credential_id IS NULL THEN  'Existing Linux'
+                ELSE 'Cloud Platform'
+            END AS credential_type_name,
+            cm.credential_type_code,
+            imp.instance_name,
+            IFNULL(imp.public_ip, '') AS public_ip,
+            IFNULL(imp.private_ip, '') AS private_ip,
+            imp.estimate_time,
+            imp.elapsed_time,
+            imp.progress,
+            ip.inventory_process_start_datetime,
+            ip.inventory_process_end_datetime,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt
+        FROM
+            INVENTORY_PROCESS ip
+            LEFT JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            LEFT JOIN CREDENTIAL_MASTER cm ON cm.credential_id = imp.credential_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND ip.regist_datetime between #{pageRequest.startDate} and DATE_ADD(#{pageRequest.endDate}, INTERVAL 1 DAY)
+            <if test='pageRequest.targetPlatform != null and pageRequest.targetPlatform != "ALL"'>
+                <choose>
+                    <when test='pageRequest.targetPlatform == "GCP" or pageRequest.targetPlatform == "AWS"'>
+                        AND cm.credential_type_code = #{pageRequest.targetPlatform}
+                    </when>
+                    <when test='pageRequest.targetPlatform == "EL"'>
+                        AND imp.credential_id IS NULL
+                    </when>
+                </choose>
+            </if>
+            <if test='pageRequest.migrationStatus != null and pageRequest.migrationStatus != "ALL"'>
+                AND ip.inventory_process_result_code = #{pageRequest.migrationStatus}
+            </if>
+            <if test='pageRequest.keyword != null and pageRequest.keyword != ""'>
+                AND (
+                    im.inventory_name LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR sm.representative_ip_address LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR cm.credential_type_code LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.instance_name LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.public_ip LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR imp.private_ip LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR ip.inventory_process_result_code LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                    OR ip.inventory_process_result_txt LIKE CONCAT('%',#{pageRequest.keyword},'%')
+                )
+            </if>
+        ORDER BY
+            ip.inventory_process_id DESC
+        <if test="pageRequest.isExcelDownload != true">
+            LIMIT #{pageRequest.pageSize} OFFSET #{pageRequest.pageNumber}
+        </if>
+    </select>
+
+    <select id="selectMigrationJob" resultType="io.playce.roro.common.dto.migration.MigrationJobDetailResponseDto$Detail">
+        SELECT
+            ip.inventory_process_id,
+            cm.credential_id,
+            CASE
+                WHEN imp.migration_pre_config_id IS NULL THEN 'Rehost'
+                ELSE 'Replatform'
+            END AS migration_type,
+            CASE
+                WHEN imp.credential_id IS NULL THEN  'Existing Linux'
+                ELSE 'Cloud Platform'
+            END AS credential_type_name,
+            cm.credential_type_code,
+            cm.credential_name,
+            ip.inventory_process_result_code,
+            ip.inventory_process_result_txt,
+            imp.progress,
+            imp.estimate_time,
+            imp.elapsed_time,
+            ip.inventory_process_start_datetime,
+            ip.inventory_process_end_datetime,
+            ua.user_login_id AS regist_user_id,
+            ua2.user_login_id AS modify_user_id,
+            ip.regist_datetime,
+            ip.modify_datetime
+        FROM
+            INVENTORY_PROCESS ip
+            INNER JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            LEFT JOIN CREDENTIAL_MASTER cm ON cm.credential_id = imp.credential_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN USER_ACCESS ua ON ua.user_id = ip.regist_user_id
+            INNER JOIN USER_ACCESS ua2 ON ua2.user_id = ip.modify_user_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+          AND ip.delete_yn = 'N'
+          AND im.project_id = #{projectId}
+          AND ip.inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectMigrationSourceServer" resultType="io.playce.roro.common.dto.migration.MigrationJobDetailResponseDto$SourceServer">
+        SELECT
+            sm.server_inventory_id,
+            im.inventory_name AS server_inventory_name,
+            im.inventory_detail_type_code,
+            sm.representative_ip_address AS server_ip,
+            ss.os_name,
+            ss.cpu_model,
+            ss.mem_size AS memory_size,
+            ss.swap_size,
+            ss.os_kernel,
+            ss.os_family,
+            ss.vendor_name,
+            ss.cpu_architecture,
+            mpc.migration_pre_config_id AS pre_config_id,
+            mpc.delete_yn AS pre_config_delete_yn,
+            mpc.config_name AS pre_config_name,
+            mpc.image_id AS pre_config_image_id
+        FROM
+            INVENTORY_PROCESS ip
+            INNER JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+            INNER JOIN SERVER_SUMMARY ss ON ss.server_inventory_id = sm.server_inventory_id
+            LEFT JOIN MIGRATION_PRE_CONFIG mpc ON mpc.migration_pre_config_id = imp.migration_pre_config_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND ip.inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectExistLinux" resultType="Map">
+        SELECT
+            mpc.connect_ip_address AS ipAddress
+             , ipr.inventory_process_result_json AS resultJson
+        FROM
+            INVENTORY_PROCESS ip
+            INNER JOIN INVENTORY_PROCESS_RESULT ipr ON ipr.inventory_process_id = ip.inventory_process_id
+            INNER JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            INNER JOIN MIGRATION_PRE_CONFIG mpc ON mpc.migration_pre_config_id = imp.migration_pre_config_id
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND ip.inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectMigrationTargetServer" resultType="io.playce.roro.common.dto.migration.MigrationJobDetailResponseDto$TargetServer">
+        SELECT
+            imp.instance_id,
+            imp.instance_name,
+            imp.public_ip,
+            imp.private_ip,
+            imp.gcp_project_id,
+            imp.instance_type,
+            imp.availability_zone,
+            imp.vpc_id,
+            imp.vpc_name,
+            imp.subnet_id,
+            imp.subnet_name,
+            CASE
+                WHEN imp.firewalls IS NULL THEN imp.security_group_ids
+                ELSE imp.firewalls
+            END temp_firewalls,
+            imp.image_id,
+            imp.image_name,
+            imp.block_devices,
+            imp.instance_launch_time,
+            imp.region,
+            imp.enable_eip_yn,
+            imp.host_name,
+            imp.security_group_ids AS temp_security_group_ids,
+            imp.security_group_names AS temp_security_group_names,
+            imp.exclude_directories AS temp_exclude_directories
+        FROM
+            INVENTORY_PROCESS ip
+            INNER JOIN INVENTORY_MIGRATION_PROCESS imp ON imp.inventory_process_id = ip.inventory_process_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id AND im.inventory_type_code = 'SVR' AND im.delete_yn = 'N'
+        WHERE
+            ip.inventory_process_type_code = 'MIG'
+            AND ip.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            AND ip.inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectMigrationVolumes" resultType="io.playce.roro.common.dto.migration.MigrationJobDetailResponseDto$Volume">
+        SELECT
+            migration_volume_id,
+            volume_path,
+            volume_size,
+            volume_id,
+            root_yn,
+            device_name
+        FROM
+            INVENTORY_MIGRATION_PROCESS_VOLUME
+        WHERE
+            inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectMigrationTags" resultType="io.playce.roro.common.dto.migration.MigrationJobDetailResponseDto$Tag">
+        SELECT
+            migration_tag_id,
+            tag_name,
+            tag_value
+        FROM
+            INVENTORY_MIGRATION_PROCESS_TAG
+        WHERE
+            inventory_process_id = #{migrationId}
+    </select>
+
+    <select id="selectMaxInventoryProcess" resultType="java.util.Date">
+        SELECT
+            MAX(ip.inventory_process_start_datetime) as inventory_process_start_datetime
+        FROM
+            INVENTORY_PROCESS ip
+        WHERE
+            ip.inventory_id IN (
+                SELECT
+                    si.inventory_id
+                FROM
+                    SERVICE_INVENTORY si
+                    INNER JOIN SERVICE_MASTER sm
+                     ON si.service_id = sm.service_id
+                WHERE
+                    sm.service_id = #{serviceId}
+                    and sm.delete_yn = 'N'
+                )
+        GROUP BY ip.inventory_process_group_id
+        ORDER BY inventory_process_start_datetime DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectMaxInventoryProcessInProject" resultType="java.util.Date">
+        SELECT
+            MAX(ip.inventory_process_start_datetime) as inventory_process_start_datetime
+        FROM
+            INVENTORY_PROCESS ip
+        WHERE
+            ip.inventory_id IN (
+                SELECT
+                    im.inventory_id
+                FROM
+                    INVENTORY_MASTER im
+                WHERE im.delete_yn = 'N'
+                  and im.project_id = #{projectId}
+                )
+        GROUP BY ip.inventory_process_group_id
+        ORDER BY inventory_process_start_datetime DESC
+        LIMIT 1
+    </select>
+
+    <select id ="selectInventoryProcessLastSuccessComplete" resultType="String">
+        SELECT
+            ipr.inventory_process_result_json
+        FROM
+            INVENTORY_PROCESS ip
+            LEFT JOIN INVENTORY_PROCESS_RESULT ipr
+                ON ip.inventory_process_id = ipr.inventory_process_id
+        WHERE
+            ip.delete_yn = 'N'
+            AND ip.inventory_id = #{serverInventoryId}
+            AND ip.inventory_process_type_code = 'SCAN'
+            AND ip.inventory_process_result_code IN ('CMPL', 'PC')
+        ORDER BY
+            ip.inventory_process_id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectSuccessCompleteCount" resultType="int">
+        SELECT
+            COUNT(*)
+        FROM
+            INVENTORY_PROCESS
+        WHERE
+            inventory_process_type_code = 'SCAN'
+            AND inventory_process_result_code IN ('CMPL', 'PC')
+            AND inventory_id = #{inventoryId}
+
+    </select>
+</mapper>

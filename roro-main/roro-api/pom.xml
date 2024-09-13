@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>roro-main</artifactId>
+        <groupId>io.playce.roro</groupId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>roro-api</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-jpa</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mybatis</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-interface</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-interface</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-app-asmt-interface</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-interface</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-mig-interface</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-prerequisite</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-excel-template</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>0.9.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.rakugakibox.util</groupId>
+            <artifactId>yaml-resource-bundle</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>2.7.4</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bgee.log4jdbc-log4j2</groupId>
+            <artifactId>log4jdbc-log4j2-jdbc4.1</artifactId>
+            <version>1.16</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-csv -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-messaging</artifactId>
+        </dependency>
+
+        <!-- history -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-history</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- host scan -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-host-scan</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- server assessment -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-redhat</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-aix</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-hpux</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-solaris</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-asmt-debian</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- db assessment -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-mariadb</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-mssql</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-mysql</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-oracle</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-sybase</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-tibero</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-db-asmt-postgresql</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- middleware -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-weblogic</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-tomcat</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-websphere</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-webtob</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-jeus</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-apache</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-jboss</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-mw-asmt-nginx</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- migration -->
+        <!-- AWS, GCP는 Preconfig API에서 사용 -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-mig-aws</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-mig-gcp</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-svr-mig-existing-linux</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- application -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-app-asmt-java</artifactId>
+            <version>${revision}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Web Log Viewer -->
+        <dependency>
+            <groupId>io.github.sevdokimov.logviewer</groupId>
+            <artifactId>log-viewer-spring-boot</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- k8s -->
+        <dependency>
+            <groupId>io.playce.roro</groupId>
+            <artifactId>roro-k8s</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

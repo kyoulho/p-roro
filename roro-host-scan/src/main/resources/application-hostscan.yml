@@ -1,0 +1,6 @@
+host-scan:
+  time-out: 300
+  ping-option: -c 1
+  windows-ttls: 32, 52, 54, 128
+  linux-ttls: 64, 244, 245, 253
+  unix-ttls: 60, 238, 247, 248, 255

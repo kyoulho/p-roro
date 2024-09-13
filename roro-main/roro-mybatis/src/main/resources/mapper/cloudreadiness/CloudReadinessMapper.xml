@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.cloudreadiness.CloudReadinessMapper">
+
+    <select id="selectSurvey" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessQuestionResponse">
+        SELECT
+            s.survey_id,
+            s.survey_name_english,
+            s.survey_name_korean
+        FROM
+            SURVEY s
+        WHERE
+            s.survey_id = #{surveyId}
+    </select>
+
+    <select id="selectQuestion" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessQuestionResponse$QuestionDto">
+        SELECT
+            sc.survey_category_id,
+            sc.category_step,
+            sc.category_name_english,
+            sc.category_name_korean,
+            t.parent_survey_category_id,
+            t.evaluation_item_id,
+            t.evaluation_item_english,
+            t.evaluation_item_korean,
+            t.survey_category_id AS question_survey_category_id,
+            t.question_id,
+            t.question_content_english,
+            t.question_content_korean,
+            t.display_order AS question_display_order
+        FROM
+            survey_category sc
+                INNER JOIN (
+                SELECT
+                    sc.parent_survey_category_id,
+                    sc.survey_category_id AS evaluation_item_id,
+                    sc.evaluation_item_english,
+                    sc.evaluation_item_korean,
+                    q.question_id,
+                    q.survey_category_id,
+                    q.question_content_english,
+                    q.question_content_korean,
+                    sq.display_order
+                FROM
+                    QUESTION q
+                        INNER JOIN SURVEY_QUESTION sq ON sq.QUESTION_ID = q.QUESTION_ID
+                        INNER JOIN SURVEY_CATEGORY sc ON sc.survey_category_id = q.survey_category_id
+                WHERE
+                    sq.survey_id = #{surveyId}
+                ORDER BY
+                    sq.display_order ASC
+            ) t ON t.parent_survey_category_id = sc.survey_category_id
+        WHERE
+            sc.parent_survey_category_id IS NULL
+        ORDER BY
+            t.display_order ASC
+    </select>
+
+    <select id="selectAnswer" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessQuestionResponse$Answer">
+        SELECT
+            qa.question_id,
+            a.answer_id,
+            a.answer_content_english,
+            a.answer_content_korean,
+            qa.display_order as answer_display_order
+        FROM
+            ANSWER a
+            INNER JOIN QUESTION_ANSWER qa ON qa.answer_id = a.answer_id
+        ORDER BY
+            a.answer_id ASC, qa.display_order ASC
+    </select>
+
+    <select id="selectSurveyAnswer" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadiness">
+        SELECT
+            t2.survey_process_id,
+            t2.service_id,
+            t2.service_name,
+            t2.regist_datetime,
+            t2.modify_datetime,
+            t2.excel_file_name,
+            t2.excel_file_path,
+            t2.ppt_file_name,
+            t2.ppt_file_path,
+            t2.survey_process_result_code,
+            MAX(CASE WHEN t2.category_name_english = 'Business Factors' THEN t2.sum_score END) AS business_score,
+            MAX(CASE WHEN t2.category_name_english = 'Technical Factors' THEN t2.sum_score END) AS technical_score
+        FROM (
+             SELECT
+                 r.survey_process_id,
+                 r.service_id,
+                 r.service_name,
+                 r.survey_process_result_code,
+                 r.category_name_english,
+                 r.excel_file_name,
+                 r.excel_file_path,
+                 r.ppt_file_name,
+                 r.ppt_file_path,
+                 r.regist_datetime,
+                 r.modify_datetime,
+                 SUM(r.result_score) AS sum_score
+             FROM (
+                  SELECT
+                      sm.service_id,
+                      sm.service_name,
+                      sp.survey_process_id,
+                      sp.excel_file_name,
+                      sp.excel_file_path,
+                      sp.ppt_file_name,
+                      sp.ppt_file_path,
+                      sp.survey_process_result_code,
+                      sp.regist_datetime,
+                      sp.modify_datetime,
+                      t.parent_survey_category_id,
+                      t.category_name_english,
+                      sq.weight,
+                      qa.score,
+                      CAST(sq.weight * qa.score AS DECIMAL(3,2)) AS result_score
+                  FROM
+                      SERVICE_MASTER sm
+                      LEFT JOIN SURVEY_PROCESS sp ON sm.service_id = sp.service_id
+                      LEFT JOIN SURVEY_USER_ANSWER sua ON sua.survey_process_id = sp.survey_process_id
+                      LEFT JOIN SURVEY_QUESTION sq ON sq.survey_id = sp.survey_id AND sq.question_id = sua.question_id
+                      LEFT JOIN QUESTION_ANSWER qa ON qa.question_id = sua.question_id AND qa.answer_id = sua.answer_id
+                      LEFT JOIN (
+                          SELECT
+                              sc.category_name_english,
+                              a.parent_survey_category_id,
+                              a.evaluation_item_english,
+                              a.question_id,
+                              a.survey_category_id
+                          FROM
+                              survey_category sc
+                              INNER JOIN (
+                                  SELECT
+                                      sc.parent_survey_category_id,
+                                      sc.category_name_english,
+                                      sc.evaluation_item_english,
+                                      q.question_id,
+                                      q.survey_category_id
+                                  FROM
+                                      QUESTION q
+                                      INNER JOIN SURVEY_QUESTION sq ON sq.question_id = q.question_id
+                                      INNER JOIN SURVEY_CATEGORY sc ON sc.survey_category_id = q.survey_category_id
+                              ) a ON a.parent_survey_category_id = sc.survey_category_id
+                      ) t ON t.question_id = qa.question_id
+                  WHERE
+                      sm.project_id = #{projectId}
+                      and sm.delete_yn = 'N'
+                  ) r
+             GROUP BY
+                 r.service_id, r.survey_process_id, r.parent_survey_category_id
+             ) t2
+        GROUP BY
+            t2.service_id, t2.survey_process_id
+        ORDER BY
+            t2.service_id DESC
+    </select>
+
+    <select id="selectCloudReadinessDetail" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessDetail">
+        SELECT
+            t2.survey_process_id,
+            t2.survey_id,
+            t2.service_id,
+            t2.service_name,
+            t2.regist_datetime,
+            t2.modify_datetime,
+            t2.survey_process_result_code,
+            MAX(CASE WHEN t2.category_name_english = 'Business Factors' THEN t2.sum_score END) AS business_score,
+            MAX(CASE WHEN t2.category_name_english = 'Technical Factors' THEN t2.sum_score END) AS technical_score,
+            t2.regist_user_login_id,
+            t2.modify_user_login_id
+        FROM (
+                 SELECT
+                     r.survey_process_id,
+                     r.survey_id,
+                     r.service_id,
+                     r.service_name,
+                     r.survey_process_result_code,
+                     r.category_name_english,
+                     r.regist_datetime,
+                     r.modify_datetime,
+                     SUM(r.result_score) AS sum_score,
+                     r.regist_user_login_id,
+                     r.modify_user_login_id
+                 FROM (
+                          SELECT
+                              sm.service_id,
+                              sm.service_name,
+                              sp.survey_id,
+                              sp.survey_process_id,
+                              sp.survey_process_result_code,
+                              sp.regist_datetime,
+                              sp.modify_datetime,
+                              t.parent_survey_category_id,
+                              t.category_name_english,
+                              sq.weight,
+                              qa.score,
+                              CAST(sq.weight * qa.score AS DECIMAL(3,2)) AS result_score,
+                              ua.user_login_id as regist_user_login_id,
+                              ua2.user_login_id as modify_user_login_id
+                          FROM
+                              SURVEY_PROCESS sp
+                                  INNER JOIN SERVICE_MASTER sm ON sm.service_id = sp.service_id
+                                  INNER JOIN SURVEY_USER_ANSWER sua ON sua.survey_process_id = sp.survey_process_id
+                                  INNER JOIN SURVEY_QUESTION sq ON sq.survey_id = sp.survey_id AND sq.question_id = sua.question_id
+                                  INNER JOIN QUESTION_ANSWER qa ON qa.question_id = sua.question_id AND qa.answer_id = sua.answer_id
+                                  INNER JOIN USER_ACCESS ua ON ua.user_id = sp.regist_user_id
+                                  INNER JOIN USER_ACCESS ua2 ON ua2.user_id = sp.modify_user_id
+                                  INNER JOIN (
+                                  SELECT
+                                      sc.category_name_english,
+                                      a.parent_survey_category_id,
+                                      a.evaluation_item_english,
+                                      a.question_id,
+                                      a.survey_category_id
+                                  FROM
+                                      survey_category sc
+                                          INNER JOIN (
+                                          SELECT
+                                              sc.parent_survey_category_id,
+                                              sc.category_name_english,
+                                              sc.evaluation_item_english,
+                                              q.question_id,
+                                              q.survey_category_id
+                                          FROM
+                                              QUESTION q
+                                                  INNER JOIN SURVEY_QUESTION sq ON sq.question_id = q.question_id
+                                                  INNER JOIN SURVEY_CATEGORY sc ON sc.survey_category_id = q.survey_category_id
+                                      ) a ON a.parent_survey_category_id = sc.survey_category_id
+                              ) t ON t.question_id = qa.question_id
+                          WHERE
+                              sm.project_id = #{projectId}
+                              and sm.service_id = #{serviceId}
+                              and sm.delete_yn = 'N'
+                      ) r
+                 GROUP BY
+                     r.survey_process_id, r.parent_survey_category_id
+             ) t2
+    </select>
+
+    <select id="selectAnswerSummary" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessDetail$AnswerSummary">
+        SELECT
+            sua.question_id,
+            sua.answer_id,
+            sq.weight,
+            qa.score
+        FROM survey_user_answer sua
+            LEFT JOIN survey_question sq ON sq.question_id = sua.question_id
+            LEFT JOIN question_answer qa ON qa.answer_id = sua.answer_id
+        WHERE
+            sua.survey_process_id = #{surveyProcessId}
+    </select>
+
+    <select id="selectCloudReadinessResultList" resultType="io.playce.roro.common.dto.cloudreadiness.CloudReadinessCategoryResult">
+        SELECT
+            r.survey_id,
+            r.survey_process_id,
+            r.service_id,
+            r.service_name,
+            -- r.category_name_english,
+            SUM(r.business_relevance) as business_relevance,
+            SUM(r.scale_of_service) as scale_of_service,
+            SUM(r.target_of_service) as target_of_service,
+            SUM(r.elasticity_of_load) as elasticity_of_load,
+            SUM(r.business_requirements) as business_requirements,
+            SUM(r.business_score) AS business_score,
+            SUM(r.technical_score) AS technical_score,
+            SUM(r.usage_of_resources) as usage_of_resources,
+            SUM(r.ageing_of_resources) as ageing_of_resources,
+            SUM(r.number_of_systems_interfaced) as number_of_systems_interfaced,
+            SUM(r.language) as language,
+            SUM(r.framework) as framework,
+            SUM(r.system_architecture) as system_architecture,
+            SUM(r.os) as os,
+            SUM(r.virtualization) as virtualization,
+            SUM(r.business_requirements_for_cloud_adoption) as business_requirements_for_cloud_adoption
+        FROM (
+            SELECT sp.survey_id,
+                   sp.survey_process_id,
+                   sm.service_id,
+                   sm.service_name,
+                   qa.score,
+                   t.parent_survey_category_id,
+                   CASE WHEN q.survey_category_id = 2 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as business_relevance,
+                   CASE WHEN q.survey_category_id = 3 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as scale_of_service,
+                   CASE WHEN q.survey_category_id = 4 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as target_of_service,
+                   CASE WHEN q.survey_category_id = 5 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as elasticity_of_load,
+                   CASE WHEN q.survey_category_id = 6 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as business_requirements,
+                   CASE WHEN t.parent_survey_category_id = 1 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END AS business_score,
+                   CASE WHEN t.parent_survey_category_id = 7 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END AS technical_score,
+                   CASE WHEN q.survey_category_id = 8 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as usage_of_resources,
+                   CASE WHEN q.survey_category_id = 9 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as ageing_of_resources,
+                   CASE WHEN q.survey_category_id = 10 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as number_of_systems_interfaced,
+                   CASE WHEN q.survey_category_id = 11 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as `language`,
+                   CASE WHEN q.survey_category_id = 12 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as framework,
+                   CASE WHEN q.survey_category_id = 13 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as system_architecture,
+                   CASE WHEN q.survey_category_id = 14 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as os,
+                   CASE WHEN q.survey_category_id = 15 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as virtualization,
+                   CASE WHEN q.survey_category_id = 16 THEN CAST(sq.weight * qa.score AS DECIMAL(3,2)) END as business_requirements_for_cloud_adoption
+            FROM
+                SERVICE_MASTER sm
+                    INNER JOIN SURVEY_PROCESS sp ON sm.service_id = sp.service_id
+                    INNER JOIN SURVEY_USER_ANSWER sua ON sua.survey_process_id = sp.survey_process_id
+                    INNER JOIN SURVEY_QUESTION sq ON sq.survey_id = sp.survey_id AND sq.question_id = sua.question_id
+                    INNER JOIN QUESTION_ANSWER qa ON qa.answer_id = sua.answer_id
+                    INNER JOIN QUESTION q ON qa.question_id = q.question_id
+                    INNER JOIN (
+                    SELECT
+                        sc.category_name_english,
+                        a.parent_survey_category_id,
+                        a.evaluation_item_english,
+                        a.question_id,
+                        a.survey_category_id
+                    FROM
+                        survey_category sc
+                            INNER JOIN (
+                            SELECT
+                                sc.parent_survey_category_id,
+                                sc.category_name_english,
+                                sc.evaluation_item_english,
+                                q.question_id,
+                                q.survey_category_id
+                            FROM
+                                QUESTION q
+                                    INNER JOIN SURVEY_QUESTION sq ON sq.question_id = q.question_id
+                                    INNER JOIN SURVEY_CATEGORY sc ON sc.survey_category_id = q.survey_category_id
+                        ) a ON a.parent_survey_category_id = sc.survey_category_id
+                ) t ON t.question_id = qa.question_id
+            WHERE
+                sm.project_id = #{projectId}
+                and sm.delete_yn = 'N'
+        ) r
+        WHERE 1 = 1
+        <if test="serviceIds != null">
+            AND r.service_id IN <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceIds}</foreach>
+        </if>
+        GROUP BY r.service_id
+        ORDER BY r.service_id DESC
+    </select>
+</mapper>

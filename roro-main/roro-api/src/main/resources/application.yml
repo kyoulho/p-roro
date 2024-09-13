@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: Playce_RoRo
+  messages:
+    basename: i18n/message
+
+  profiles:
+    include:
+      - server
+      - datasource
+      - springdoc
+      - logging
+      - roro
+      - scheduler
+      - prerequisite
+      - excel
+      - distribution
+      - splitjson
+      - migration
+      - command
+      - hostscan
+      - appscan
+      - k8s

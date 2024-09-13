@@ -1,0 +1,9 @@
+appscan:
+  file-extensions: java,class,jsp,jspx,html,htm,js,properties,sql,xml,xmi,yml,yaml,json,sh,bat,scala,groovy,c,pc,cpp
+  exclude-filenames: .chunk.js,.min.js
+  exclude-domains: apache.org,w3.org,mvnrepository.com,springframework.org,springmodules.org,mybatis.org,egovframe.go.kr,egovframework.gov,java.sun.com,jcp.org,npmjs.org,yarnpkg.com,mozilla.org
+  remove:
+    files-after-scan: true
+  copy:
+    ignore-filenames:
+    only-matched-extensions: false

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.network.UserNetworkFilterMapper">
+    <resultMap id="UserNetworkFilterMap" type="io.playce.roro.common.dto.inventory.user.networkfilter.UserNetworkFilterDto" autoMapping="true">
+        <result property="whitelist" column="whitelist" typeHandler="io.playce.roro.mybatis.handler.JsonTypeHandler"/>
+        <result property="blacklist" column="blacklist" typeHandler="io.playce.roro.mybatis.handler.JsonTypeHandler"/>
+        <result property="hideNodes" column="hide_nodes" typeHandler="io.playce.roro.mybatis.handler.JsonTypeHandler"/>
+    </resultMap>
+
+    <select id="selectList" resultMap="UserNetworkFilterMap">
+        select unf.network_filter_id
+             , unf.whitelist
+             , unf.blacklist
+             , unf.hide_nodes
+          from user_network_filter unf
+          join user_master um
+            on um.user_id = unf.user_id
+         where um.user_id = #{userId}
+           and unf.resource_type_code = #{type}
+           and unf.resource_id = #{typeId}
+    </select>
+</mapper>

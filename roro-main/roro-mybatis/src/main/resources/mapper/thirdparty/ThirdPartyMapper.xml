@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.thirdparty.ThirdPartyMapper">
+
+    <select id="selectThirdPartySearchType" resultType="io.playce.roro.common.dto.thirdparty.ThirdPartySearchTypeResponse">
+        SELECT t.THIRD_PARTY_SEARCH_TYPE_ID
+               , s.THIRD_PARTY_SOLUTION_ID
+               , s.THIRD_PARTY_SOLUTION_NAME
+               , s.VENDOR
+               , t.SEARCH_TYPE
+               , t.SEARCH_VALUE
+               , t.INVENTORY_TYPE_CODE
+               , t.WINDOWS_YN
+          FROM THIRD_PARTY_SEARCH_TYPE t INNER JOIN THIRD_PARTY_SOLUTION s
+            ON t.THIRD_PARTY_SOLUTION_ID = s.THIRD_PARTY_SOLUTION_ID
+         WHERE s.DELETE_YN = 'N'
+           AND t.DELETE_YN = 'N'
+    </select>
+
+    <select id="selectThirdPartyList" resultType="io.playce.roro.common.dto.common.thirdparty.ThirdPartySolutionListResponse">
+        SELECT
+            tps.third_party_solution_id,
+            tps.third_party_solution_name,
+            group_concat(tpst.temp_discovery_type ORDER BY code_display_number) AS discovery_type,
+            tps.vendor,
+            tps.regist_datetime
+        FROM
+            THIRD_PARTY_SOLUTION tps
+            INNER JOIN (
+                SELECT
+                    third_party_solution_id,
+                    CONCAT_WS(' ', search_type, count(*)) AS temp_discovery_type,
+                    cd.code_display_number
+                FROM
+                    THIRD_PARTY_SEARCH_TYPE tpst
+                    INNER JOIN CODE_DETAIL cd ON cd.common_code = tpst.search_type AND cd.domain_code = 1201
+                WHERE
+                    delete_yn = 'N'
+                GROUP BY
+                    third_party_solution_id, search_type
+            ) tpst ON tpst.third_party_solution_id = tps.third_party_solution_id
+        WHERE
+            tps.delete_yn = 'N'
+        GROUP BY
+            third_party_solution_id
+        ORDER BY
+            third_party_solution_id DESC
+    </select>
+
+    <select id="selectProjectDiscoveredThirdParty" resultType="io.playce.roro.common.dto.inventory.thirdparty.DiscoveredThirdPartyDto">
+        SELECT
+            tps.third_party_solution_id,
+            tps.third_party_solution_name
+        FROM
+            THIRD_PARTY_SOLUTION tps
+            INNER JOIN THIRD_PARTY_SEARCH_TYPE tpst ON tpst.third_party_solution_id = tps.third_party_solution_id
+            INNER JOIN DISCOVERED_THIRD_PARTY dtp ON dtp.third_party_search_type_id = tpst.third_party_search_type_id
+            INNER JOIN (
+                SELECT
+                    MAX(inventory_process_id) AS inventory_process_id,
+                    inventory_id
+                FROM
+                    INVENTORY_PROCESS ipa
+                WHERE
+                    ipa.delete_yn = 'N'
+                    AND ipa.inventory_process_type_code = 'SCAN'
+                    AND ipa.inventory_process_result_code IN ('CMPL', 'PC')
+                GROUP BY
+                    inventory_id
+            ) ip ON ip.inventory_process_id = dtp.inventory_process_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id
+            INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = ip.inventory_id
+        WHERE
+            tps.delete_yn = 'N'
+            AND im.delete_yn = 'N'
+            AND im.project_id = #{projectId}
+            <if test='serviceIds != null'>
+                AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            </if>
+        GROUP BY
+            tps.third_party_solution_id, tps.third_party_solution_name
+        ORDER BY
+            tps.third_party_solution_name ASC
+    </select>
+
+    <select id="selectProjectThirdParties" resultType="io.playce.roro.common.dto.inventory.thirdparty.DiscoveredThirdPartyDto">
+        SELECT
+            im.project_id,
+            im.inventory_id,
+            im.inventory_type_code,
+            im.source_name,
+            im.server_inventory_id,
+            im.server_name,
+            im.server_ip,
+            tps.third_party_solution_id,
+            tps.third_party_solution_name,
+            tpst.search_type,
+            dtp.find_contents,
+            ip.inventory_id,
+            -- ip.modify_datetime,
+            (SELECT modify_datetime FROM INVENTORY_PROCESS WHERE inventory_process_id = ip.inventory_process_id) AS modify_datetime,
+            si.service_id
+        FROM
+            THIRD_PARTY_SOLUTION tps
+            INNER JOIN THIRD_PARTY_SEARCH_TYPE tpst ON tpst.third_party_solution_id = tps.third_party_solution_id
+            INNER JOIN DISCOVERED_THIRD_PARTY dtp ON dtp.third_party_search_type_id = tpst.third_party_search_type_id
+            INNER JOIN (
+                SELECT
+                    MAX(inventory_process_id) AS inventory_process_id,
+                    inventory_id,
+                    modify_datetime
+                FROM
+                    INVENTORY_PROCESS ipa
+                WHERE
+                    ipa.delete_yn = 'N'
+                    AND ipa.inventory_process_type_code = 'SCAN'
+                    AND ipa.inventory_process_result_code IN ('CMPL', 'PC')
+                GROUP BY
+                    inventory_id
+            ) ip ON ip.inventory_process_id = dtp.inventory_process_id
+            INNER JOIN (
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    im.inventory_id AS server_inventory_id,
+                    im.inventory_name AS server_name,
+                    sm.representative_ip_address AS server_ip
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                    AND im.inventory_type_code = 'SVR'
+                    AND im.project_id = #{projectId}
+                UNION ALL
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    sm.inventory_id AS server_inventory_id,
+                    sm.inventory_name AS server_name,
+                    server_ip
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN MIDDLEWARE_MASTER mm ON mm.middleware_inventory_id = im.inventory_id
+                    INNER JOIN (
+                        SELECT
+                            im.inventory_id,
+                            im.inventory_name,
+                            sm.representative_ip_address AS server_ip
+                        FROM
+                            INVENTORY_MASTER im
+                            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                        WHERE
+                            im.delete_yn = 'N'
+                          AND im.inventory_type_code = 'SVR'
+                          AND im.project_id = #{projectId}
+                    ) sm ON sm.inventory_id = im.server_inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                    AND im.inventory_type_code = 'MW'
+                    AND im.project_id = #{projectId}
+                UNION ALL
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    sm.inventory_id AS server_inventory_id,
+                    sm.inventory_name AS server_name,
+                    server_ip
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN APPLICATION_MASTER am ON am.application_inventory_id = im.inventory_id
+                    INNER JOIN (
+                        SELECT
+                            im.inventory_id,
+                            im.inventory_name,
+                            sm.representative_ip_address AS server_ip
+                        FROM
+                            INVENTORY_MASTER im
+                            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                        WHERE
+                            im.delete_yn = 'N'
+                          AND im.inventory_type_code = 'SVR'
+                          AND im.project_id = #{projectId}
+                    ) sm ON sm.inventory_id = im.server_inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                    AND im.inventory_type_code = 'APP'
+                    AND im.project_id = #{projectId}
+        ) im ON im.inventory_id = ip.inventory_id
+        INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = im.inventory_id
+    WHERE
+        tps.delete_yn = 'N'
+        AND tps.third_party_solution_id = #{thirdPartySolutionId}
+        <if test='serviceIds != null'>
+            AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+        </if>
+    </select>
+
+    <select id="selectServerDiscoveredThirdParty" resultType="io.playce.roro.common.dto.inventory.thirdparty.DiscoveredThirdPartyDto">
+        SELECT
+            tps.third_party_solution_id,
+            tps.third_party_solution_name
+        FROM
+            THIRD_PARTY_SOLUTION tps
+            INNER JOIN THIRD_PARTY_SEARCH_TYPE tpst ON tpst.third_party_solution_id = tps.third_party_solution_id
+            INNER JOIN DISCOVERED_THIRD_PARTY dtp ON dtp.third_party_search_type_id = tpst.third_party_search_type_id
+            INNER JOIN (
+                SELECT
+                    MAX(inventory_process_id) AS inventory_process_id,
+                    inventory_id
+                FROM
+                    INVENTORY_PROCESS ipa
+                WHERE
+                    ipa.delete_yn = 'N'
+                    AND ipa.inventory_process_type_code = 'SCAN'
+                    AND ipa.inventory_process_result_code IN ('CMPL', 'PC')
+                GROUP BY
+                    inventory_id
+            ) ip ON ip.inventory_process_id = dtp.inventory_process_id
+            INNER JOIN INVENTORY_MASTER im ON im.inventory_id = ip.inventory_id
+        WHERE
+            tps.delete_yn = 'N'
+            AND im.delete_yn = 'N'
+            AND im.inventory_type_code = 'SVR'
+            AND im.project_id = #{projectId}
+            AND im.inventory_id = #{serverId}
+        GROUP BY
+            tps.third_party_solution_id, tps.third_party_solution_name
+        ORDER BY
+            tps.third_party_solution_name ASC
+    </select>
+
+    <select id="selectServerThirdParties" resultType="io.playce.roro.common.dto.inventory.thirdparty.DiscoveredThirdPartyDto">
+        SELECT
+            im.project_id,
+            im.inventory_id,
+            im.inventory_type_code,
+            im.source_name,
+            im.server_inventory_id,
+            im.server_name,
+            im.server_ip,
+            tps.third_party_solution_id,
+            tps.third_party_solution_name,
+            tpst.search_type,
+            dtp.find_contents,
+            dtp.inventory_process_id,
+            ip.inventory_id,
+            -- ip.modify_datetime
+            (SELECT modify_datetime FROM INVENTORY_PROCESS WHERE inventory_process_id = ip.inventory_process_id) AS modify_datetime
+        FROM
+            THIRD_PARTY_SOLUTION tps
+            INNER JOIN THIRD_PARTY_SEARCH_TYPE tpst ON tpst.third_party_solution_id = tps.third_party_solution_id
+            INNER JOIN DISCOVERED_THIRD_PARTY dtp ON dtp.third_party_search_type_id = tpst.third_party_search_type_id
+            INNER JOIN (
+                SELECT
+                    MAX(inventory_process_id) AS inventory_process_id,
+                    inventory_id,
+                    modify_datetime
+                FROM
+                    INVENTORY_PROCESS ipa
+                WHERE
+                    ipa.delete_yn = 'N'
+                  AND ipa.inventory_process_type_code = 'SCAN'
+                  AND ipa.inventory_process_result_code IN ('CMPL', 'PC')
+                GROUP BY
+                    inventory_id
+            ) ip ON ip.inventory_process_id = dtp.inventory_process_id
+            INNER JOIN (
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    im.inventory_id AS server_inventory_id,
+                    im.inventory_name AS server_name,
+                    sm.representative_ip_address AS server_ip
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                  AND im.inventory_type_code = 'SVR'
+                  AND im.project_id = #{projectId}
+                UNION ALL
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    sm.inventory_id AS server_inventory_id,
+                    sm.inventory_name AS server_name,
+                    server_ip
+                FROM
+                    INVENTORY_MASTER im
+                        INNER JOIN MIDDLEWARE_MASTER mm ON mm.middleware_inventory_id = im.inventory_id
+                        INNER JOIN (
+                        SELECT
+                            im.inventory_id,
+                            im.inventory_name,
+                            sm.representative_ip_address AS server_ip
+                        FROM
+                            INVENTORY_MASTER im
+                                INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                        WHERE
+                            im.delete_yn = 'N'
+                          AND im.inventory_type_code = 'SVR'
+                          AND im.project_id = #{projectId}
+                    ) sm ON sm.inventory_id = im.server_inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                  AND im.inventory_type_code = 'MW'
+                  AND im.project_id = #{projectId}
+                UNION ALL
+                SELECT
+                    im.project_id,
+                    im.inventory_id,
+                    im.inventory_type_code,
+                    im.inventory_name AS source_name,
+                    sm.inventory_id AS server_inventory_id,
+                    sm.inventory_name AS server_name,
+                    server_ip
+                FROM
+                    INVENTORY_MASTER im
+                        INNER JOIN APPLICATION_MASTER am ON am.application_inventory_id = im.inventory_id
+                        INNER JOIN (
+                        SELECT
+                            im.inventory_id,
+                            im.inventory_name,
+                            sm.representative_ip_address AS server_ip
+                        FROM
+                            INVENTORY_MASTER im
+                                INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = im.inventory_id
+                        WHERE
+                            im.delete_yn = 'N'
+                          AND im.inventory_type_code = 'SVR'
+                          AND im.project_id = #{projectId}
+                    ) sm ON sm.inventory_id = im.server_inventory_id
+                WHERE
+                    im.delete_yn = 'N'
+                  AND im.inventory_type_code = 'APP'
+                  AND im.project_id = #{projectId}
+            ) im ON im.inventory_id = ip.inventory_id
+        WHERE
+            tps.delete_yn = 'N'
+            AND tps.third_party_solution_id = #{thirdPartySolutionId}
+            AND im.server_inventory_id = #{serverId}
+    </select>
+</mapper>

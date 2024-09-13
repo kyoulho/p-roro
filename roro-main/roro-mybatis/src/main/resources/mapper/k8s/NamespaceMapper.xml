@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.NamespaceMapper">
+    <select id="selectNamespaces" resultType="io.playce.roro.common.dto.k8s.NamespaceResponse">
+select n.namespace_id
+     , n.name
+  from namespace n
+  join cluster_scan cs
+    on cs.cluster_scan_id = n.cluster_scan_id
+  join k8s_cluster kc
+    on kc.k8s_cluster_id = cs.k8s_cluster_id
+ where kc.project_id = #{projectId}
+   and kc.k8s_cluster_id = #{k8sClusterId}
+   and cs.cluster_scan_id = #{clusterScanId}
+    </select>
+    <select id="selectNamespaceNodes" resultType="io.playce.roro.common.dto.k8s.TopologyNode">
+select concat('NS-', n.namespace_id) as id
+     , 'NS' as type
+     , n.namespace_id as type_id
+     , n.name
+     , null as parent_id
+     , null as level
+  from namespace n
+  join cluster_scan cs
+    on cs.cluster_scan_id = n.cluster_scan_id
+  join k8s_cluster kc
+    on kc.k8s_cluster_id = cs.k8s_cluster_id
+ where kc.project_id = #{projectId}
+   and kc.k8s_cluster_id = #{k8sClusterId}
+   and cs.cluster_scan_id = #{clusterScanId}
+    </select>
+</mapper>

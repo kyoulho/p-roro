@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.insights.InsightMapper">
+    <resultMap id="productLifecycleRuleAndVersion"
+               type="io.playce.roro.common.dto.productlifecycle.ProductLifecycleRulesResponse" autoMapping="true">
+        <id property="productLifecycleRulesId" column="PRODUCT_LIFECYCLE_RULES_ID"/>
+        <collection property="rules" javaType="java.util.ArrayList"
+                    ofType="io.playce.roro.common.dto.productlifecycle.ProductLifecycleRulesVersionResponse"
+                    autoMapping="true">
+        </collection>
+    </resultMap>
+    <resultMap id="insight" type="io.playce.roro.common.dto.insights.InsightDto" autoMapping="true">
+        <id property="solutionName" column="SOLUTION_NAME"/>
+        <id property="version" column="VERSION"/>
+
+        <collection property="resources" javaType="java.util.ArrayList"
+                    ofType="io.playce.roro.common.dto.insights.Resource"
+                    autoMapping="true">
+        </collection>
+    </resultMap>
+
+    <select id="selectProductLifecycleRulesAndVersions" resultMap="productLifecycleRuleAndVersion">
+        SELECT plr.PRODUCT_LIFECYCLE_RULES_ID,
+               plr.SOLUTION_NAME,
+               plr.SOLUTION_TYPE,
+               plr.VENDOR,
+               plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID,
+               plrv.VERSION,
+               plrv.GA_DATETIME,
+               plrv.EOL_DATETIME,
+               plrv.EOS_DATETIME
+        FROM PRODUCT_LIFECYCLE_RULES plr
+                 JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                      ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        ORDER BY plr.SOLUTION_NAME, plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID DESC
+    </select>
+
+    <select id="selectProductLifecycleRuleAndVersion" resultMap="productLifecycleRuleAndVersion">
+        SELECT plr.PRODUCT_LIFECYCLE_RULES_ID,
+               plr.SOLUTION_NAME,
+               plr.SOLUTION_TYPE,
+               plr.VENDOR,
+               plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID,
+               plrv.VERSION,
+               plrv.GA_DATETIME,
+               plrv.EOL_DATETIME,
+               plrv.EOS_DATETIME
+        FROM PRODUCT_LIFECYCLE_RULES plr
+                 JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                      ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        WHERE plr.PRODUCT_LIFECYCLE_RULES_ID = #{productLifecycleRulesId}
+    </select>
+
+    <select id="selectProductLifecycleRulesVersionsBySolutionName"
+            resultType="io.playce.roro.common.dto.productlifecycle.ProductLifecycleRulesVersionResponse">
+        SELECT plrv.*,
+               plr.SOLUTION_NAME
+        FROM PRODUCT_LIFECYCLE_RULES plr
+                 JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                      ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        WHERE LOWER(#{solutionName}) like CONCAT('%', LOWER(SOLUTION_NAME), '%')
+        ORDER BY CHAR_LENGTH(plrv.VERSION) DESC;
+    </select>
+    <select id="selectBillboardDetails"
+            resultType="io.playce.roro.common.dto.insights.BillboardDetail">
+        SELECT ss.OS_ALIAS                                                                    AS solutionName,
+               INVENTORY_TYPE_CODE,
+               COUNT(ss.OS_ALIAS)                                                             AS total,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME != 0 AND plrv.EOL_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eolVersions,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; #{currentDate} AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eolWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eolWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eolWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolNext3More,
+               COUNT(CASE WHEN plrv.EOL_DATETIME IS NULL OR plrv.EOL_DATETIME = 0 THEN 1 END) AS eolUnknown,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME != 0 AND plrv.EOS_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eosVersions,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; #{currentDate} AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eosWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eosWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eosWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosNext3More,
+               COUNT(CASE WHEN plrv.EOS_DATETIME = 0 OR plrv.EOS_DATETIME IS NULL THEN 1 END) AS eosUnknown
+        FROM PROJECT_MASTER pm
+                 JOIN INVENTORY_MASTER im ON im.PROJECT_ID = pm.PROJECT_ID
+                 JOIN SERVER_SUMMARY ss ON im.INVENTORY_ID = ss.SERVER_INVENTORY_ID
+                 LEFT JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+                 LEFT JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                           ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        WHERE im.DELETE_YN = 'N'
+          AND im.PROJECT_ID = #{projectId}
+        GROUP BY ss.OS_ALIAS
+
+        UNION ALL
+
+        SELECT cd.CODE_NAME_ENGLISH                                                           AS solutionName,
+               INVENTORY_TYPE_CODE,
+               COUNT(im.INVENTORY_DETAIL_TYPE_CODE)                                           AS total,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME != 0 AND plrv.EOL_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eolVersions,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; #{currentDate} AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eolWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eolWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eolWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolNext3More,
+               COUNT(CASE WHEN plrv.EOL_DATETIME IS NULL OR plrv.EOL_DATETIME = 0 THEN 1 END) AS eolUnknown,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME != 0 AND plrv.EOS_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eosVersions,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; #{currentDate} AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eosWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eosWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eosWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosNext3More,
+               COUNT(CASE WHEN plrv.EOS_DATETIME = 0 OR plrv.EOS_DATETIME IS NULL THEN 1 END) AS eosUnknown
+        FROM PROJECT_MASTER pm
+                 JOIN INVENTORY_MASTER im ON im.PROJECT_ID = pm.PROJECT_ID
+                 JOIN MIDDLEWARE_MASTER mm ON im.INVENTORY_ID = mm.MIDDLEWARE_INVENTORY_ID
+                 JOIN CODE_DETAIL cd ON cd.COMMON_CODE = im.INVENTORY_DETAIL_TYPE_CODE
+                 LEFT JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+                 LEFT JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                           ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        WHERE im.DELETE_YN = 'N'
+          AND im.PROJECT_ID = #{projectId}
+        GROUP BY im.INVENTORY_DETAIL_TYPE_CODE
+
+        UNION ALL
+
+        SELECT plr.VENDOR                                                                     AS solutionName,
+               INVENTORY_TYPE_CODE,
+               COUNT(im.INVENTORY_DETAIL_TYPE_CODE)                                           AS total,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME != 0 AND plrv.EOL_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eolVersions,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; #{currentDate} AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eolWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eolWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eolWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolNext3More,
+               COUNT(CASE WHEN plrv.EOL_DATETIME IS NULL OR plrv.EOL_DATETIME = 0 THEN 1 END) AS eolUnknown,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME != 0 AND plrv.EOS_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eosVersions,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; #{currentDate} AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eosWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eosWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eosWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosNext3More,
+               COUNT(CASE WHEN plrv.EOS_DATETIME = 0 OR plrv.EOS_DATETIME IS NULL THEN 1 END) AS eosUnknown
+        FROM PROJECT_MASTER pm
+                 JOIN INVENTORY_MASTER im ON im.PROJECT_ID = pm.PROJECT_ID
+                 JOIN APPLICATION_MASTER am ON im.INVENTORY_ID = am.APPLICATION_INVENTORY_ID
+                 LEFT JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+                 LEFT JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                           ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.JAVA_VERSION_ID
+                 JOIN product_lifecycle_rules plr
+                      on plrv.PRODUCT_LIFECYCLE_RULES_ID = plr.PRODUCT_LIFECYCLE_RULES_ID
+        WHERE im.DELETE_YN = 'N'
+          AND im.PROJECT_ID = #{projectId}
+        GROUP BY plr.VENDOR
+
+        UNION ALL
+
+        SELECT cd.CODE_NAME_ENGLISH                                                           AS solutionName,
+               INVENTORY_TYPE_CODE,
+               COUNT(im.INVENTORY_DETAIL_TYPE_CODE)                                           AS total,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME != 0 AND plrv.EOL_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eolVersions,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; #{currentDate} AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eolWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eolWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eolWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOL_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOL_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eolNext3More,
+               COUNT(CASE WHEN plrv.EOL_DATETIME IS NULL OR plrv.EOL_DATETIME = 0 THEN 1 END) AS eolUnknown,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME != 0 AND plrv.EOS_DATETIME &lt;= #{currentDate}
+                             THEN 1 END)                                                      AS eosVersions,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; #{currentDate} AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 30 DAY)
+                             THEN 1 END)                                                      AS eosWithin30Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 30 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 60 DAY)
+                             THEN 1 END)                                                      AS eosWithin60Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 60 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 90 DAY)
+                             THEN 1 END)                                                      AS eosWithi90Days,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 90 DAY) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 1 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext1,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 1 YEAR) AND
+                              plrv.EOS_DATETIME &lt;= date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosWithinNext3,
+               COUNT(CASE
+                         WHEN plrv.EOS_DATETIME &gt; date_add(#{currentDate}, INTERVAL 3 YEAR)
+                             THEN 1 END)                                                      AS eosNext3More,
+               COUNT(CASE WHEN plrv.EOS_DATETIME = 0 OR plrv.EOS_DATETIME IS NULL THEN 1 END) AS eosUnknown
+        FROM PROJECT_MASTER pm
+                 JOIN INVENTORY_MASTER im ON im.PROJECT_ID = pm.PROJECT_ID
+                 JOIN DATABASE_MASTER dm ON INVENTORY_ID = dm.DATABASE_INVENTORY_ID
+                 JOIN CODE_DETAIL cd ON cd.COMMON_CODE = im.INVENTORY_DETAIL_TYPE_CODE
+                 LEFT JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+                 LEFT JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv
+                           ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        WHERE im.DELETE_YN = 'N'
+          AND im.PROJECT_ID = #{projectId}
+        GROUP BY im.INVENTORY_DETAIL_TYPE_CODE
+    </select>
+
+    <select id="selectLifecycleResponse" resultType="io.playce.roro.common.dto.insights.LifecycleResponse">
+        SELECT plrv.GA_DATETIME,
+        plrv.EOL_DATETIME,
+        plrv.EOS_DATETIME
+        FROM inventory_master im
+        JOIN inventory_lifecycle_version_link ilvl ON ilvl.INVENTORY_ID = im.INVENTORY_ID
+        JOIN product_lifecycle_rules_version plrv
+        <choose>
+            <when test=" 'JAVA'.equalsIgnoreCase(type) ">
+                ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.JAVA_VERSION_ID
+            </when>
+            <otherwise>
+                ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+            </otherwise>
+        </choose>
+        WHERE im.PROJECT_ID = #{projectId}
+        AND im.INVENTORY_ID = #{inventoryId}
+        AND im.DELETE_YN = 'N';
+    </select>
+
+    <select id="selectVendorAndOpensourceYnBySolutionName" resultType="hashmap">
+        SELECT plr.VENDOR        AS vendor,
+               plr.OPENSOURCE_YN AS opensourceYn
+        FROM PRODUCT_LIFECYCLE_RULES plr
+        WHERE LOWER(plr.SOLUTION_NAME) = LOWER(#{solutionName})
+    </select>
+
+    <select id="selectInsights" resultMap="insight">
+        <!-- SVR -->
+        SELECT
+        SOLUTION_TYPE,
+        SOLUTION_NAME,
+        VENDOR,
+        ss.OS_VERSION AS version,
+        GA_DATETIME,
+        EOL_DATETIME,
+        EOS_DATETIME,
+        <if test='within == -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        <if test='within != -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        im.INVENTORY_ID,
+        INVENTORY_NAME AS resourceName,
+        INVENTORY_TYPE_CODE AS resourceType,
+        REPRESENTATIVE_IP_ADDRESS AS resourceIp
+        FROM INVENTORY_MASTER im
+        JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+        JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        JOIN PRODUCT_LIFECYCLE_RULES plr ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.INVENTORY_ID
+        JOIN SERVICE_INVENTORY si ON si.INVENTORY_ID = im.INVENTORY_ID
+        JOIN SERVER_SUMMARY ss ON ss.SERVER_INVENTORY_ID = im.INVENTORY_ID
+        WHERE DELETE_YN = 'N'
+        AND PROJECT_ID = #{projectId}
+        <if test="toExcel == false">
+            <if test='within == -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                )
+            </if>
+            <if test='within != -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                )
+            </if>
+            <if test="serviceIds != null">
+                AND si.SERVICE_ID IN
+                <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">
+                    #{serviceIds}
+                </foreach>
+            </if>
+        </if>
+        GROUP BY im.INVENTORY_ID
+
+        UNION ALL
+        <!-- MW -->
+        SELECT
+        SOLUTION_TYPE,
+        SOLUTION_NAME,
+        VENDOR,
+        ENGINE_VERSION AS version,
+        GA_DATETIME,
+        EOL_DATETIME,
+        EOS_DATETIME,
+        <if test='within == -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        <if test='within != -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        im.INVENTORY_ID,
+        INVENTORY_NAME AS resourceName,
+        INVENTORY_TYPE_CODE AS resourceType,
+        REPRESENTATIVE_IP_ADDRESS AS resourceIp
+        FROM INVENTORY_MASTER im
+        JOIN MIDDLEWARE_MASTER mm ON mm.MIDDLEWARE_INVENTORY_ID = im.INVENTORY_ID
+        JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.SERVER_INVENTORY_ID
+        JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON ilvl.INVENTORY_ID = mm.MIDDLEWARE_INVENTORY_ID
+        JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        JOIN PRODUCT_LIFECYCLE_RULES plr ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        JOIN SERVICE_INVENTORY si ON si.INVENTORY_ID = im.INVENTORY_ID
+        WHERE DELETE_YN = 'N'
+        AND PROJECT_ID = #{projectId}
+        <if test="toExcel == false">
+            <if test='within == -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                )
+            </if>
+            <if test='within != -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                )
+            </if>
+            <if test="serviceIds != null">
+                AND si.SERVICE_ID IN
+                <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">
+                    #{serviceIds}
+                </foreach>
+            </if>
+        </if>
+        GROUP BY im.INVENTORY_ID
+
+        UNION ALL
+        <!-- Java -->
+        SELECT
+        SOLUTION_TYPE,
+        SOLUTION_NAME,
+        VENDOR,
+        am.JAVA_VERSION AS version,
+        GA_DATETIME,
+        EOL_DATETIME,
+        EOS_DATETIME,
+        <if test='within == -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        <if test='within != -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        im.INVENTORY_ID,
+        INVENTORY_NAME AS resourceName,
+        INVENTORY_TYPE_CODE AS resourceType,
+        REPRESENTATIVE_IP_ADDRESS As resourceIp
+        FROM INVENTORY_MASTER im
+        JOIN APPLICATION_MASTER am ON am.APPLICATION_INVENTORY_ID= im.INVENTORY_ID
+        JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.SERVER_INVENTORY_ID
+        JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON ilvl.INVENTORY_ID = am.APPLICATION_INVENTORY_ID
+        JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.JAVA_VERSION_ID
+        JOIN PRODUCT_LIFECYCLE_RULES plr ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        JOIN SERVICE_INVENTORY si ON si.INVENTORY_ID = im.INVENTORY_ID
+        WHERE DELETE_YN = 'N'
+        AND PROJECT_ID = #{projectId}
+        <if test="toExcel == false">
+            <if test='within == -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                )
+            </if>
+            <if test='within != -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                )
+            </if>
+            <if test="serviceIds != null">
+                AND si.SERVICE_ID IN
+                <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">
+                    #{serviceIds}
+                </foreach>
+            </if>
+        </if>
+        GROUP BY im.INVENTORY_ID
+
+        UNION ALL
+        <!-- DBMS -->
+        SELECT
+        SOLUTION_TYPE,
+        SOLUTION_NAME,
+        plr.VENDOR,
+        dm.ENGINE_VERSION AS version,
+        GA_DATETIME,
+        EOL_DATETIME,
+        EOS_DATETIME,
+        <if test='within == -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        <if test='within != -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        im.INVENTORY_ID,
+        INVENTORY_NAME AS resourceName,
+        INVENTORY_TYPE_CODE AS resourceType,
+        REPRESENTATIVE_IP_ADDRESS AS resourceIp
+        FROM INVENTORY_MASTER im
+        JOIN DATABASE_MASTER dm ON dm.DATABASE_INVENTORY_ID = im.INVENTORY_ID
+        JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.SERVER_INVENTORY_ID
+        JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON im.INVENTORY_ID = ilvl.INVENTORY_ID
+        JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.PRODUCT_VERSION_ID
+        JOIN PRODUCT_LIFECYCLE_RULES plr ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        JOIN SERVICE_INVENTORY si ON si.INVENTORY_ID = im.INVENTORY_ID
+        WHERE DELETE_YN = 'N'
+        AND PROJECT_ID = #{projectId}
+        <if test="toExcel == false">
+            <if test='within == -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                )
+            </if>
+            <if test='within != -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                )
+            </if>
+            <if test="serviceIds != null">
+                AND si.SERVICE_ID IN
+                <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">
+                    #{serviceIds}
+                </foreach>
+            </if>
+        </if>
+        GROUP BY im.INVENTORY_ID
+
+        UNION ALL
+        <!-- Java In MW -->
+        SELECT
+        SOLUTION_TYPE,
+        SOLUTION_NAME,
+        VENDOR,
+        JAVA_VERSION AS version,
+        GA_DATETIME,
+        EOL_DATETIME,
+        EOS_DATETIME,
+        <if test='within == -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME > date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        <if test='within != -1'>
+            CASE
+            WHEN EOL_DATETIME &lt; #{currentDate} AND EOL_DATETIME > 0 THEN 'ended'
+            WHEN EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOL,
+            CASE
+            WHEN EOS_DATETIME &lt; #{currentDate} AND EOS_DATETIME > 0 THEN 'ended'
+            WHEN EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day) THEN 'tbe'
+            ELSE ''
+            END AS EOS,
+        </if>
+        im.INVENTORY_ID,
+        INVENTORY_NAME AS resourceName,
+        INVENTORY_TYPE_CODE AS resourceType,
+        REPRESENTATIVE_IP_ADDRESS AS resourceIp
+        FROM INVENTORY_MASTER im
+        JOIN MIDDLEWARE_MASTER mm ON mm.MIDDLEWARE_INVENTORY_ID = im.INVENTORY_ID
+        JOIN SERVER_MASTER sm ON sm.SERVER_INVENTORY_ID = im.SERVER_INVENTORY_ID
+        JOIN INVENTORY_LIFECYCLE_VERSION_LINK ilvl ON ilvl.INVENTORY_ID = mm.MIDDLEWARE_INVENTORY_ID
+        JOIN PRODUCT_LIFECYCLE_RULES_VERSION plrv ON plrv.PRODUCT_LIFECYCLE_RULES_VERSION_ID = ilvl.JAVA_VERSION_ID
+        JOIN PRODUCT_LIFECYCLE_RULES plr ON plr.PRODUCT_LIFECYCLE_RULES_ID = plrv.PRODUCT_LIFECYCLE_RULES_ID
+        JOIN SERVICE_INVENTORY si ON si.INVENTORY_ID = im.INVENTORY_ID
+        WHERE DELETE_YN = 'N'
+        AND PROJECT_ID = #{projectId}
+        <if test="toExcel == false">
+            <if test='within == -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME > date_add(#{currentDate}, interval 1095 day))
+                )
+            </if>
+            <if test='within != -1'>
+                AND(
+                (EOL_DATETIME > 0 AND EOL_DATETIME &lt; #{currentDate} OR EOL_DATETIME &gt; #{currentDate} AND EOL_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                OR (EOS_DATETIME > 0 AND EOS_DATETIME &lt; #{currentDate} OR EOS_DATETIME &gt; #{currentDate} AND EOS_DATETIME &lt;= date_add(#{currentDate}, interval #{within} day))
+                )
+            </if>
+            <if test="serviceIds != null">
+                AND si.SERVICE_ID IN
+                <foreach item="serviceIds" index="index" collection="serviceIds" open="(" separator="," close=")">
+                    #{serviceIds}
+                </foreach>
+            </if>
+        </if>
+        GROUP BY im.INVENTORY_ID
+
+        ORDER BY SOLUTION_NAME, VERSION
+    </select>
+</mapper>

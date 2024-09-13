@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.middleware.MiddlewareMapper">
+    <select id="selectMiddlewareList" resultType="io.playce.roro.common.dto.inventory.middleware.MiddlewareResponse">
+        select im.project_id,
+               im.customer_inventory_code,
+               im.customer_inventory_name,
+               im.inventory_type_code,
+               im.inventory_detail_type_code,
+               im.inventory_id as middleware_inventory_id,
+               im.inventory_name as middleware_inventory_name,
+               im.server_inventory_id,
+               sim.inventory_name as server_inventory_name,
+               /*ssm.representative_ip_address,*/
+               (select representative_ip_address from server_master where server_inventory_id = im.server_inventory_id) as representative_ip_address,
+               mm.vendor_name,
+               mm.engine_version,
+               mm.middleware_type_code,
+               mm.engine_installation_path as engine_install_path,
+               mm.domain_home_path,
+               im.regist_user_id,
+               im.regist_datetime,
+               ua.user_login_id as regist_user_login_id,
+               im.modify_user_id,
+               im.modify_datetime,
+               ua2.user_login_id as modify_user_login_id,
+               im.description,
+               im.automatic_regist_yn,
+               mm.dedicated_authentication_yn,
+               cm.credential_id,
+               cm.user_name,
+               cm.user_password,
+               cm.key_file_name,
+               cm.key_file_path,
+               cm.key_file_content,
+                (select count(*) from discovered_instance_master dim inner join middleware_instance mi
+                    on dim.discovered_instance_id = mi.middleware_instance_id
+                where dim.finder_inventory_id = im.inventory_id and dim.delete_yn = 'N') as instanceCount
+        from inventory_master im
+        inner join inventory_master sim
+            on im.server_inventory_id = sim.inventory_id
+        inner join server_master ssm
+            on ssm.server_inventory_id = sim.inventory_id
+        inner join service_inventory si
+            on im.inventory_id = si.inventory_id
+        inner join middleware_master mm
+            on im.inventory_id = mm.middleware_inventory_id
+        left join credential_master cm
+            on im.credential_id = cm.credential_id
+        inner join user_access ua
+            on im.regist_user_id = ua.user_id
+        inner join user_access ua2
+            on im.modify_user_id = ua2.user_id
+        where
+            im.project_id = #{projectId}
+            and im.delete_yn = 'N'
+            and im.inventory_type_code = 'MW'
+            <if test="serviceId != null">
+                and si.service_id = #{serviceId}
+            </if>
+            <if test="serverId != null">
+                and im.server_inventory_id = #{serverId}
+            </if>
+        group by mm.middleware_inventory_id
+        order by mm.middleware_inventory_id desc
+    </select>
+
+    <select id="selectMiddlewareDetail" resultType="io.playce.roro.common.dto.inventory.middleware.MiddlewareDetailResponse">
+        select im.project_id,
+               im.customer_inventory_code,
+               im.customer_inventory_name,
+               im.inventory_type_code,
+               im.inventory_detail_type_code,
+               im.inventory_id as middleware_inventory_id,
+               im.inventory_name as middleware_inventory_name,
+               im.server_inventory_id,
+               sim.inventory_name as server_inventory_name,
+               ssm.representative_ip_address,
+               # sm.service_id,
+               # sm.service_name,
+               mm.vendor_name,
+               mm.engine_version,
+               mm.middleware_type_code,
+               mm.engine_installation_path as engine_install_path,
+               mm.domain_home_path,
+               mm.java_version,
+               mm.java_vendor,
+               im.regist_user_id,
+               im.regist_datetime,
+               ua.user_login_id as regist_user_login_id,
+               im.modify_user_id,
+               im.modify_datetime,
+               ua2.user_login_id as modify_user_login_id,
+               im.description,
+               im.automatic_regist_yn,
+               mm.dedicated_authentication_yn,
+               cm.credential_id,
+               cm.user_name,
+               cm.user_password,
+               cm.key_file_name,
+               cm.key_file_path,
+               cm.key_file_content,
+               (select count(*) from discovered_instance_master dim inner join middleware_instance mi
+                    on dim.discovered_instance_id = mi.middleware_instance_id
+               where dim.finder_inventory_id = im.inventory_id and dim.delete_yn = 'N') as instanceCount
+        from inventory_master im
+         inner join inventory_master sim
+                    on im.server_inventory_id = sim.inventory_id
+         inner join server_master ssm
+                    on ssm.server_inventory_id = sim.inventory_id
+#        left join service_inventory si
+#                   on im.inventory_id = si.inventory_id
+#        inner join service_master sm
+#                   on si.service_id = sm.service_id
+         inner join middleware_master mm
+                    on im.inventory_id = mm.middleware_inventory_id
+         left join credential_master cm
+                    on im.credential_id = cm.credential_id
+         inner join user_access ua
+                    on im.regist_user_id = ua.user_id
+         inner join user_access ua2
+                    on im.modify_user_id = ua2.user_id
+        where
+            im.project_id = #{projectId}
+          and im.delete_yn = 'N'
+          and im.inventory_type_code = 'MW'
+          and im.inventory_id = #{middlewareInventoryId}
+        group by im.inventory_id
+    </select>
+
+    <select id="selectMiddlewareInstanceList" resultType="io.playce.roro.common.dto.inventory.middleware.InstanceResponse">
+        select dim.possession_inventory_id as middleware_inventory_id,
+               dim.discovered_instance_id as middleware_instance_id,
+               dim.project_id,
+               mi.middleware_instance_path,
+               mi.middleware_instance_name,
+               mi.middleware_config_path,
+               mi.middleware_profile_name,
+               mi.middleware_cell_name,
+               mi.middleware_node_name,
+               mi.middleware_server_name,
+               mi.running_user,
+               mi.java_version,
+               mi.regist_user_id,
+               ua.user_login_id as regist_user_login_id,
+               mi.regist_datetime,
+               dim.inventory_process_id,
+               mip.middleware_instance_service_port,
+               CASE
+                   WHEN (mi.running_user is null or mi.running_user = '') THEN 'N'
+                   ELSE 'Y'
+               END as activeYn
+        from discovered_instance_master dim
+        inner join middleware_instance mi
+            on dim.discovered_instance_id = mi.middleware_instance_id
+        inner join user_access ua
+            on mi.regist_user_id = ua.user_id
+        left join (
+            -- middleware instance protocol 테이블 조회
+            select mip.middleware_instance_id, group_concat(mip.middleware_instance_service_port separator ', ') as middleware_instance_service_port
+            from middleware_instance_protocol mip
+            group by mip.middleware_instance_id
+        ) as mip on mip.middleware_instance_id = mi.middleware_instance_id
+        where
+            dim.project_id = #{projectId}
+            and dim.finder_inventory_id = #{middlewareInventoryId}
+            and dim.delete_yn = 'N'
+    </select>
+    <select id="selectMiddlewareInventory" resultType="io.playce.roro.common.util.support.MiddlewareInventory">
+        select im.server_inventory_id,
+               mm.engine_version,
+               im.inventory_name,
+               im.inventory_detail_type_code,
+               mm.engine_installation_path,
+               mm.domain_home_path,
+               mm.vendor_name,
+               mm.process_name,
+               mm.middleware_type_code
+          from inventory_master im
+          join middleware_master mm
+            on mm.middleware_inventory_id = im.inventory_id
+         where im.inventory_id = #{inventoryId}
+    </select>
+
+    <select id="selectMiddlewareInstanceDetail" resultType="io.playce.roro.common.dto.inventory.middleware.InstanceDetailResponse">
+        select
+            dim.finder_inventory_id,
+            dim.possession_inventory_id,
+            mi.middleware_instance_name,
+            mi.middleware_instance_path,
+            mi.middleware_config_path,
+            mip.middleware_instance_service_port,
+            mi.running_user,
+            mi.java_version,
+            mi.regist_user_id,
+            mi.regist_datetime
+        from
+            discovered_instance_master dim
+            inner join middleware_instance mi
+               on dim.discovered_instance_id = mi.middleware_instance_id
+            left join (
+                -- middleware instance protocol 테이블 조회
+                select mip.middleware_instance_id, group_concat(mip.middleware_instance_service_port separator ', ') as middleware_instance_service_port
+                from middleware_instance_protocol mip
+                group by mip.middleware_instance_id
+            ) as mip on mip.middleware_instance_id = mi.middleware_instance_id
+        where
+            dim.project_id = #{projectId}
+            and dim.discovered_instance_id = #{middlewareInstanceId}
+            and dim.delete_yn = 'N'
+    </select>
+
+    <select id="selectDuplicateMiddlewareInventory" resultType="io.playce.roro.common.util.support.MiddlewareInventory">
+        select im.server_inventory_id,
+               mm.engine_version,
+               im.inventory_name,
+               im.inventory_detail_type_code,
+               mm.engine_installation_path,
+               mm.domain_home_path
+        from inventory_master im
+            join middleware_master mm on mm.middleware_inventory_id = im.inventory_id
+        where im.PROJECT_ID = #{projectId}
+              and im.SERVER_INVENTORY_ID = #{serverInventoryId}
+              and (im.DELETE_YN = 'N' or (im.DELETE_YN = 'Y' and mm.automatic_regist_protection_yn = 'Y'))
+        <if test="engineInstallationPath != null">
+            and mm.ENGINE_INSTALLATION_PATH = #{engineInstallationPath}
+        </if>
+        <if test="engineInstallationPath == null">
+            and mm.ENGINE_INSTALLATION_PATH IS null
+        </if>
+        <if test="domainHomePath != null">
+            and mm.DOMAIN_HOME_PATH = #{domainHomePath}
+        </if>
+        <if test="domainHomePath == null">
+            and mm.DOMAIN_HOME_PATH IS null
+        </if>
+    </select>
+
+    <select id="selectMiddlewareExcel" resultType="io.playce.roro.common.dto.inventory.middleware.MiddlewareExcelResponse">
+        select im.project_id,
+               pm.project_name,
+               im.customer_inventory_code,
+               im.customer_inventory_name,
+               sm.service_id,
+               sm.service_name,
+               im.server_inventory_id,
+               sim.inventory_name as server_inventory_name,
+               im.inventory_id as middleware_inventory_id,
+               im.inventory_name as middleware_inventory_name,
+               mm.middleware_type_code,
+               mm.vendor_name,
+               im.inventory_detail_type_code,
+               mm.engine_version,
+               mm.engine_installation_path as engine_install_path,
+               mm.domain_home_path,
+               (select count(*) from discovered_instance_master dim inner join middleware_instance mi
+                    on dim.discovered_instance_id = mi.middleware_instance_id
+                where dim.finder_inventory_id = im.inventory_id and dim.delete_yn = 'N') as instanceCount,
+               im.description,
+               dis.discovered_instance_id as middleware_instance_id,
+               mi.middleware_instance_name,
+               mi.middleware_instance_path,
+               mi.middleware_config_path,
+               mi.running_user,
+               mi.java_version,
+               mip.middleware_instance_service_port,
+               mm.dedicated_authentication_yn,
+               cm.credential_id,
+               cm.user_name,
+               cm.user_password,
+               cm.key_file_name,
+               cm.key_file_path,
+               cm.key_file_content,
+               tl.labels
+        from inventory_master im
+            inner join project_master pm on im.project_id = pm.project_id
+            inner join inventory_master sim on im.server_inventory_id = sim.inventory_id
+            left join service_inventory si on im.inventory_id = si.inventory_id
+            left join service_master sm on si.service_id = sm.service_id
+            inner join middleware_master mm on im.inventory_id = mm.middleware_inventory_id
+            left join credential_master cm on im.credential_id = cm.credential_id
+            left join discovered_instance_master dis on im.inventory_id = dis.finder_inventory_id and dis.delete_yn = 'N' and dis.inventory_type_code = 'MW'
+            left join middleware_instance mi on dis.discovered_instance_id = mi.middleware_instance_id
+            left join (
+                select lm.label_id, group_concat(lm.label_name separator ',') as labels, il.inventory_id
+                from inventory_label il inner join label_master lm on il.label_id = lm.label_id
+                group by inventory_id
+            ) as tl on tl.inventory_id = im.inventory_id
+            left join (
+                SELECT
+                    mi.middleware_instance_id,
+                    GROUP_CONCAT(mip.middleware_instance_service_port) AS middleware_instance_service_port
+                FROM
+                    MIDDLEWARE_INSTANCE mi
+                    INNER JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip ON mip.middleware_instance_id = mi.middleware_instance_id
+                GROUP BY
+                    mi.middleware_instance_id
+            ) mip ON mip.middleware_instance_id = mi.middleware_instance_id
+            -- left join middleware_instance_protocol mip
+            --   on mi.MIDDLEWARE_INSTANCE_ID = mip.MIDDLEWARE_INSTANCE_ID
+        where
+            im.project_id = #{projectId}
+            and im.delete_yn = 'N'
+            and im.inventory_type_code = 'MW'
+            <if test="serviceId != null">
+                and sm.service_id = #{serviceId}
+            </if>
+            <if test="serverId != null">
+                and im.server_inventory_id = #{serverId}
+            </if>
+    </select>
+
+    <select id="selectDeployApplicationList" resultType="io.playce.roro.common.dto.inventory.middleware.DeployApplicationList">
+        select
+            miai.middleware_instance_application_instance_id,
+            miai.middleware_instance_id,
+            miai.application_instance_id,
+            im.inventory_id as application_inventory_id,
+            im.inventory_name as application_name,
+            miai.context_path,
+            miai.auto_deploy_yn,
+            miai.reloadable_yn,
+            am.deploy_path
+        from
+            middleware_instance_application_instance miai
+            inner join discovered_instance_master dim on miai.application_instance_id = dim.discovered_instance_id and dim.delete_yn = 'N' and dim.inventory_type_code = 'APP'
+            inner join inventory_master im on dim.possession_inventory_id = im.inventory_id and im.delete_yn = 'N' and im.inventory_type_code = 'APP'
+            inner join application_master am on im.inventory_id = am.application_inventory_id
+        where im.project_id = #{projectId}
+              and miai.middleware_instance_id = #{middlewareInstanceId}
+    </select>
+
+    <select id="selectDatasourceList" resultType="Map">
+        select dim.project_id
+             , dim.finder_inventory_id as middleware_inventory_id
+             , dii.discovered_instance_interface_id
+             , dii.discovered_instance_interface_detail_type_code
+             , dii.descriptors_name
+             , dii.full_descriptors
+             , diii.discovered_instance_interface_ip_address AS server_ip
+             , diii.service_name
+             , diii.user_name
+          from discovered_instance_master dim
+          join discovered_instance_interface dii
+            on dii.discovered_instance_interface_id = dim.discovered_instance_id
+          join discovered_instance_interface_ips diii
+            on dii.discovered_instance_interface_id = diii.discovered_instance_interface_id
+           and dii.discovered_instance_interface_seq = diii.discovered_instance_interface_seq
+         where dim.project_id = #{projectId}
+           and dim.discovered_instance_id = #{middlewareInstanceId}
+    </select>
+    
+    <select id="selectDuplicatedMiddleware" resultType="Long">
+        SELECT mm.middleware_inventory_id
+        FROM inventory_master im INNER JOIN middleware_master mm
+                ON im.inventory_id = mm.middleware_inventory_id
+        WHERE im.delete_yn = 'N'
+          AND im.project_id = #{projectId}
+          AND im.server_inventory_id = #{serverInventoryId}
+          AND mm.engine_installation_path = #{engineInstallPath}
+    </select>
+
+</mapper>

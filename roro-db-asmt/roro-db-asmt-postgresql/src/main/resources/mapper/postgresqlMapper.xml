@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.postgresql">
+
+    <select id="selectSetting" resultType="io.playce.roro.db.asmt.postgresql.dto.Setting">
+        SELECT
+            name,
+            setting
+        FROM
+            pg_catalog.pg_settings
+    </select>
+
+    <select id="selectStartupTime" resultType="Date">
+        SELECT pg_postmaster_start_time()
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.postgresql.dto.User">
+        SELECT
+            usename AS username,
+            CASE
+                WHEN usesuper AND usecreatedb THEN CAST('superuser, create database' AS pg_catalog.text)
+                WHEN usesuper THEN  CAST('superuser' AS pg_catalog.text)
+                WHEN usecreatedb THEN CAST('create database' AS pg_catalog.text)
+                ELSE CAST('' AS pg_catalog.text)
+            END roles,
+            useconfig
+        FROM
+	        pg_catalog.pg_user
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.postgresql.dto.Database">
+        SELECT
+            d.datname as name,
+            pg_catalog.pg_get_userbyid(d.datdba) as owner,
+            pg_catalog.pg_encoding_to_char(d.encoding) as encoding,
+            d.datcollate as collation,
+            d.datctype as ctype,
+            CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')
+                     THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))
+                 ELSE 'No Access'
+            END as dbSize,
+            t.spcname as table_space,
+            pg_catalog.shobj_description(d.oid, 'pg_database') as description
+        FROM
+            pg_catalog.pg_database d
+            JOIN pg_catalog.pg_tablespace t on d.dattablespace = t.oid
+        WHERE
+            datistemplate = false
+            AND datname NOT IN ('postgres')
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.postgresql.dto.Database">
+        SELECT
+            d.datname as name,
+            pg_catalog.pg_get_userbyid(d.datdba) as owner,
+            pg_catalog.pg_encoding_to_char(d.encoding) as encoding,
+            d.datcollate as collation,
+            d.datctype as ctype,
+            CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')
+                     THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))
+                 ELSE 'No Access'
+            END as dbSize,
+            t.spcname as table_space,
+            pg_catalog.shobj_description(d.oid, 'pg_database') as description
+        FROM
+            pg_catalog.pg_database d
+            JOIN pg_catalog.pg_tablespace t on d.dattablespace = t.oid
+        WHERE
+            datistemplate = false
+            AND datname = #{databaseName}
+    </select>
+
+    <select id="selectTable" resultType="io.playce.roro.db.asmt.postgresql.dto.Table">
+        SELECT
+            table_schema AS schema_name,
+            table_name,
+            table_type,
+            c.reltuples AS row_count,
+            pg_size_pretty(pg_total_relation_size('"' || table_name || '"')) AS total_table_size
+        FROM
+            information_schema.tables t
+            INNER JOIN pg_catalog.pg_class c ON c.relname = t.table_name
+        WHERE
+            table_type = 'BASE TABLE'
+            AND table_schema NOT IN ('pg_catalog', 'information_schema', 'sys')
+    </select>
+
+    <select id="selectTableDdlScript" resultType ="String">
+        SELECT
+            string_agg(ddl_txt::TEXT, E'\n') AS ddl_script
+        FROM
+            (
+                (
+                    SELECT
+                        'CREATE TABLE ' || t.nspname || '.' || pc.relname || ' (' || E'\n\t' ||
+                        string_agg(pa.attname || ' ' || pg_catalog.format_type(pa.atttypid, pa.atttypmod) ||
+                        COALESCE(
+                            (SELECT
+                                ' DEFAULT ' || substring(pg_get_expr(paf.adbin, paf.adrelid) FOR 128)
+                            FROM
+                                pg_attrdef paf
+                            WHERE
+                                paf.adrelid = pa.attrelid AND paf.adnum = pa.attnum AND pa.atthasdef), '')
+                        ||
+                        CASE
+                            WHEN pa.attnotnull = TRUE THEN ' NOT NULL'
+                            ELSE ''
+                        END, E'\n\t, ')
+                        ||
+                        COALESCE(
+                            (SELECT
+                                E'\n\t, ' || 'CONSTRAINT' || ' ' || conindid::regclass::varchar || ' ' || pg_get_constraintdef(c.oid)
+                            FROM
+                                pg_constraint c
+                                INNER JOIN pg_catalog.pg_class tbl ON tbl.oid = c.conrelid
+                                INNER JOIN pg_catalog.pg_namespace AS ns ON tbl.relnamespace = ns.oid
+                            WHERE
+                                ns.nspname = #{schemaName}
+                                AND conrelid::regclass::varchar = #{tableName}
+                                AND contype = 'p'), '')
+                        || E'\n);' AS ddl_txt
+                    FROM
+                        pg_attribute pa JOIN pg_class pc ON pa.attrelid = pc.oid
+                                        INNER JOIN (
+                            SELECT
+                                relname, relnamespace, nspname
+                            FROM
+                                pg_catalog.pg_class AS c
+                                    INNER JOIN pg_catalog.pg_namespace AS ns ON c.relnamespace = ns.oid
+                        ) t ON t.relnamespace = pc.relnamespace AND pc.relname = t.relname
+                    WHERE
+                        t.nspname = #{schemaName}
+                        AND pc.relname::varchar = #{tableName}
+                        AND pa.attnum > 0
+                        AND NOT pa.attisdropped
+                        AND pc.relkind = 'r'
+                    GROUP BY
+                        pa.attrelid, pc.relnamespace, pc.relname, t.nspname
+                )
+                UNION ALL
+                (
+                    SELECT
+                        string_agg(indexdef || ';' ::TEXT, E'\n') AS ddl_txt
+                    FROM
+                        pg_catalog.pg_indexes
+                    WHERE
+                        schemaname = #{schemaName}
+                      AND tablename = #{tableName}
+                )
+            ) AS t
+    </select>
+
+    <select id="selectView" resultType="io.playce.roro.db.asmt.postgresql.dto.View">
+        SELECT
+            schemaname AS schema_name,
+            viewname AS view_name,
+            definition AS ddl_script
+        FROM
+            pg_catalog.pg_views
+        WHERE
+            schemaname NOT IN ('pg_catalog', 'information_schema', 'sys')
+    </select>
+
+    <select id="selectIndex" resultType="io.playce.roro.db.asmt.postgresql.dto.Index">
+        SELECT
+            schemaname AS schema_name,
+            tablename AS table_name,
+            indexname AS index_name,
+            indexdef AS ddl_script
+        FROM
+            pg_catalog.pg_indexes
+        WHERE
+            schemaname NOT IN ('pg_catalog', 'information_schema', 'sys')
+        ORDER BY
+            table_name
+    </select>
+
+    <select id="selectProcedure" resultType="io.playce.roro.db.asmt.postgresql.dto.Procedure">
+        SELECT
+            routine_schema AS schema_name,
+            routine_name AS procedure_name,
+            p.proargnames AS args,
+            type_udt_name AS return_type,
+            pg_get_functiondef(p.oid) AS ddl_script
+        FROM
+            information_schema.routines r
+            INNER JOIN pg_catalog.pg_proc p ON p.proname = r.routine_name
+        WHERE
+            r.routine_schema NOT IN ('pg_catalog', 'information_schema', 'sys')
+            AND r.routine_schema NOT LIKE 'dbms_%'
+            AND r.routine_schema NOT LIKE 'utl_%'
+            AND r.routine_schema NOT LIKE '%$%'
+            AND r.routine_schema NOT LIKE 'htp%'
+            AND r.routine_type = 'PROCEDURE'
+    </select>
+
+    <select id="selectFunction" resultType="io.playce.roro.db.asmt.postgresql.dto.Function">
+        SELECT
+            routine_schema AS schema_name,
+            routine_name AS function_name,
+            p.proargnames AS args,
+            type_udt_name AS return_type,
+            pg_get_functiondef(p.oid) AS ddl_script
+        FROM
+            information_schema.routines r
+            INNER JOIN pg_catalog.pg_proc p ON p.proname = r.routine_name
+        WHERE
+            r.routine_schema NOT IN ('pg_catalog', 'information_schema', 'sys')
+            AND r.routine_schema NOT LIKE 'dbms_%'
+            AND r.routine_schema NOT LIKE 'utl_%'
+            AND r.routine_schema NOT LIKE '%$%'
+            AND r.routine_schema NOT LIKE 'htf%'
+            AND r.routine_type = 'FUNCTION'
+    </select>
+
+    <select id="selectSequence" resultType="io.playce.roro.db.asmt.postgresql.dto.Sequence">
+        SELECT
+            sequence_schema AS schema_name,
+            sequence_name,
+            minimum_value,
+            maximum_value,
+            increment
+        FROM
+            information_schema.sequences
+        WHERE
+            sequence_schema NOT IN ('sys')
+    </select>
+
+    <select id="selectTrigger" resultType="io.playce.roro.db.asmt.postgresql.dto.Trigger">
+        SELECT
+            trigger_schema AS schema_name,
+            event_object_table AS table_name,
+            trigger_name,
+            string_agg(event_manipulation, ',') AS event,
+            action_condition AS condition,
+            action_statement AS ddl_script
+        FROM
+            information_schema.triggers
+        GROUP BY
+            table_name, schema_name, trigger_name, condition, ddl_script
+    </select>
+
+</mapper>

@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.mssql">
+
+    <select id="selectInstanceVersion" resultType="int">
+        SELECT SUBSTRING(CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR), 0, CHARINDEX('.', CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)))
+    </select>
+
+    <select id="selectInstanceWithWinInfo" resultType="io.playce.roro.db.asmt.mssql.dto.Instance">
+        SELECT
+            SUBSTRING(@@VERSION, CHARINDEX('Windows', @@VERSION, 0), 100) AS windows_version,
+            windows_service_pack_level,
+            (CASE
+                 WHEN windows_sku = 4 THEN 'Enterprise Edition'
+                 WHEN windows_sku = 7 THEN 'Standard Server Edition'
+                 WHEN windows_sku = 8 THEN 'Datacenter Server Edition'
+                 WHEN windows_sku = 10 THEN 'Enterprise Server Edition'
+                 WHEN windows_sku = 48 THEN 'Professional Edition'
+                 ELSE ''
+                END) AS windows_sku,
+            @@SERVERNAME AS host_name,
+            SUBSTRING(@@VERSION, 0, CHARINDEX(CHAR(10), @@VERSION)) AS version,
+            SERVERPROPERTY('ProductVersion') AS product_version,
+            (SELECT sqlserver_start_time FROM sys.dm_os_sys_info) AS startup_time
+        FROM
+            sys.dm_os_windows_info
+    </select>
+
+    <select id="selectInstance" resultType="io.playce.roro.db.asmt.mssql.dto.Instance">
+        SELECT
+            SUBSTRING(@@VERSION, CHARINDEX('Windows', @@VERSION, 0), 100) AS windows_version,
+            @@SERVERNAME AS host_name,
+            SUBSTRING(@@VERSION, 0, CHARINDEX(CHAR(10), @@VERSION)) AS version,
+            SERVERPROPERTY('ProductVersion') AS product_version,
+            (SELECT sqlserver_start_time FROM sys.dm_os_sys_info) AS startup_time
+    </select>
+
+    <select id="selectMemory" resultType="io.playce.roro.db.asmt.mssql.dto.Memory">
+        SELECT
+            total_physical_memory_kb,
+            available_physical_memory_kb,
+            total_page_file_kb,
+            available_page_file_kb,
+            system_cache_kb,
+            kernel_paged_pool_kb,
+            kernel_nonpaged_pool_kb,
+            system_high_memory_signal_state,
+            system_low_memory_signal_state,
+            system_memory_state_desc
+        FROM
+            sys.dm_os_sys_memory
+    </select>
+
+    <select id="selectDataFile" resultType="io.playce.roro.db.asmt.mssql.dto.DataFile">
+        SELECT
+            database_id,
+            file_id,
+            type_desc,
+            data_space_id,
+            df.name,
+            physical_name,
+            state_desc,
+            max_size,
+            growth,
+            is_media_read_only,
+            is_read_only,
+            is_sparse,
+            is_percent_growth,
+            is_name_reserved,
+            df.[size] * 8 / 1000 AS alloc_size_mb,
+            t1.EmptySpaceInMB AS empty_space_mb
+        FROM
+            sys.master_files df
+            INNER JOIN (
+                SELECT
+                    name,
+                    size / 128.0 AS FileSizeInMB,
+                    round(size / 128.0 - CAST(FILEPROPERTY(name, 'SpaceUsed') AS int)/ 128.0, 2) AS EmptySpaceInMB
+                FROM
+                    sys.master_files
+                ) t1 ON df.name = t1.name
+        WHERE
+            file_guid IS NOT NULL
+        ORDER BY
+            df.database_id
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.mssql.dto.User">
+        SELECT
+            spr.name,
+            spr.type_desc,
+            spr.default_database_name,
+            spr.default_language_name,
+            spm.class_desc,
+            spm.permission_name,
+            spm.state_desc,
+            spr.create_date,
+            suser_name(srm.role_principal_id) AS server_role_name
+        FROM
+            sys.server_principals as spr with (nolock)
+            INNER JOIN sys.server_permissions as spm (nolock) ON
+                spm.grantee_principal_id = spr.principal_id
+            LEFT OUTER JOIN sys.server_role_members as srm with (nolocK) ON
+                spr.name = suser_name(srm.member_principal_id)
+        WHERE
+            spr.type IN ('S', 'U', 'K', 'G')
+    </select>
+
+    <select id="selectDbLink" resultType="io.playce.roro.db.asmt.mssql.dto.DbLink">
+        SELECT
+            srvid,
+            srvname,
+            srvproduct,
+            providername,
+            datasource,
+            location,
+            providerstring,
+            schemadate,
+            catalog,
+            srvcollation,
+            connecttimeout,
+            querytimeout,
+            isremote,
+            rpc,
+            pub,
+            sub,
+            dist,
+            dpub,
+            rpcout,
+            dataaccess,
+            collationcompatible,
+            system,
+            useremotecollation,
+            lazyschemavalidation,
+            collation,
+            nonsqlsub,
+            ll.remote_name AS remote_user_name
+        FROM
+            master.dbo.sysservers ss
+            INNER JOIN master.sys.linked_logins ll ON ll.server_id = ss.srvid
+        WHERE
+            srvid > 0
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.mssql.dto.Database">
+        SELECT
+            name,
+            database_id,
+            source_database_id,
+            owner_sid,
+            create_date,
+            compatibility_level,
+            collation_name,
+            user_access_desc,
+            is_read_only,
+            is_auto_close_on,
+            is_auto_shrink_on,
+            state_desc,
+            is_in_standby,
+            is_cleanly_shutdown,
+            is_supplemental_logging_enabled,
+            snapshot_isolation_state_desc,
+            is_read_committed_snapshot_on,
+            recovery_model_desc,
+            page_verify_option_desc,
+            is_auto_create_stats_on,
+            is_auto_update_stats_on,
+            is_auto_update_stats_async_on,
+            is_ansi_null_default_on,
+            is_ansi_nulls_on,
+            is_ansi_padding_on,
+            is_ansi_warnings_on,
+            is_arithabort_on,
+            is_concat_null_yields_null_on,
+            is_numeric_roundabort_on,
+            is_quoted_identifier_on,
+            is_recursive_triggers_on,
+            is_cursor_close_on_commit_on,
+            is_local_cursor_default,
+            is_fulltext_enabled,
+            is_trustworthy_on,
+            is_db_chaining_on,
+            is_parameterization_forced,
+            is_master_key_encrypted_by_server,
+            is_published,
+            is_subscribed,
+            is_merge_published,
+            is_distributor,
+            is_sync_with_backup,
+            is_broker_enabled,
+            log_reuse_wait_desc,
+            is_date_correlation_on
+        FROM
+            sys.databases
+        WHERE
+                name NOT IN ('master', 'tempdb', 'model', 'msdb', 'resource', 'ReportServer', 'ReportServerTempDB')
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.mssql.dto.Database">
+        SELECT
+            name,
+            database_id,
+            source_database_id,
+            owner_sid,
+            create_date,
+            compatibility_level,
+            collation_name,
+            user_access_desc,
+            is_read_only,
+            is_auto_close_on,
+            is_auto_shrink_on,
+            state_desc,
+            is_in_standby,
+            is_cleanly_shutdown,
+            is_supplemental_logging_enabled,
+            snapshot_isolation_state_desc,
+            is_read_committed_snapshot_on,
+            recovery_model_desc,
+            page_verify_option_desc,
+            is_auto_create_stats_on,
+            is_auto_update_stats_on,
+            is_auto_update_stats_async_on,
+            is_ansi_null_default_on,
+            is_ansi_nulls_on,
+            is_ansi_padding_on,
+            is_ansi_warnings_on,
+            is_arithabort_on,
+            is_concat_null_yields_null_on,
+            is_numeric_roundabort_on,
+            is_quoted_identifier_on,
+            is_recursive_triggers_on,
+            is_cursor_close_on_commit_on,
+            is_local_cursor_default,
+            is_fulltext_enabled,
+            is_trustworthy_on,
+            is_db_chaining_on,
+            is_parameterization_forced,
+            is_master_key_encrypted_by_server,
+            is_published,
+            is_subscribed,
+            is_merge_published,
+            is_distributor,
+            is_sync_with_backup,
+            is_broker_enabled,
+            log_reuse_wait_desc,
+            is_date_correlation_on
+        FROM
+            sys.databases
+        WHERE
+            name = #{databaseName}
+    </select>
+
+    <select id="selectObjectSummary" resultType="io.playce.roro.db.asmt.mssql.dto.ObjectSummary">
+        <![CDATA[
+        SELECT
+            db_name() AS database_name,
+            schema_name(schema_id) AS schema_name,
+            type_desc AS object_name,
+            count(*) AS object_count
+        FROM
+            sys.all_objects
+        WHERE
+            (is_ms_shipped <> 1)
+        GROUP BY
+            schema_id,
+            type_desc
+        ORDER BY
+            schema_name,
+            type_desc
+        ]]>
+    </select>
+
+    <select id="selectTable" resultType="io.playce.roro.db.asmt.mssql.dto.Table">
+        SELECT
+            db_name() AS database_name,
+            s.name AS schema_name,
+            t.name AS table_name,
+            p.rows AS row_count,
+            SUM(a.total_pages) * 8 AS total_space_kb,
+            CAST(ROUND(((SUM(a.total_pages) * 8) / 1024.00), 2) AS NUMERIC(36, 2)) AS total_space_mb,
+            SUM(a.used_pages) * 8 AS used_space_kb,
+            CAST(ROUND(((SUM(a.used_pages) * 8) / 1024.00), 2) AS NUMERIC(36, 2)) AS used_space_mb,
+            (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS unused_space_kb,
+            CAST(ROUND(((SUM(a.total_pages) - SUM(a.used_pages)) * 8) / 1024.00, 2) AS NUMERIC(36, 2)) AS unused_space_mb
+        FROM
+            sys.tables t
+            INNER JOIN sys.indexes i ON
+                t.object_id = i.object_id
+            INNER JOIN sys.partitions p ON
+                i.object_id = p.object_id AND i.index_id = p.index_id
+            INNER JOIN sys.allocation_units a ON
+                p.partition_id = a.container_id
+            INNER JOIN sysobjects so ON
+                t.object_id = so.id
+            INNER JOIN syscolumns sc ON
+                so.id = sc.id
+            INNER JOIN systypes st ON
+                st.type = sc.type
+            LEFT OUTER JOIN sys.schemas s ON
+                t.schema_id = s.schema_id
+        WHERE
+            t.name NOT LIKE 'dt%'
+            AND t.is_ms_shipped = 0
+            AND i.object_id > 255
+            AND so.type = 'U'
+        GROUP BY
+            t.name, s.name, p.rows
+        ORDER BY
+            schema_name, table_name
+    </select>
+
+    <select id="selectView" resultType="io.playce.roro.db.asmt.mssql.dto.View">
+        SELECT
+            db_name() AS database_name,
+            OBJECT_SCHEMA_NAME(v.object_id) AS schema_name,
+            name AS view_name,
+            is_ms_shipped,
+            is_published,
+            is_schema_published,
+            is_replicated,
+            has_replication_filter,
+            has_opaque_metadata,
+            has_unchecked_assembly_data,
+            with_check_option,
+            is_date_correlation_view,
+            is_tracked_by_cdc,
+            create_date,
+            modify_date,
+            sm.definition AS ddl_script
+        FROM
+            sys.views v
+            INNER JOIN sys.sql_modules sm ON
+                sm.object_id = v.object_id
+    </select>
+
+    <select id="selectIndex" resultType="io.playce.roro.db.asmt.mssql.dto.Index">
+        SELECT
+            db_name() AS database_name,
+            schema_name(o.schema_id) AS schema_name,
+            object_name(o.object_id) AS table_name,
+            isnull(i.name,'HEAP') AS index_name,
+            i.type_desc,
+            convert(numeric(15,1),(reserved_page_count)* 8. / 1024) AS reserved_size_mb,
+            max(row_count) AS row_count,
+            ds.name AS datafile_name
+        FROM
+            sys.dm_db_partition_stats ps
+            INNER JOIN sys.indexes i ON
+                ps.object_id = i.object_id AND ps.index_id = i.index_id
+            INNER JOIN sys.objects o ON
+                ps.object_id = o.object_id AND o.type = 'U'
+            INNER JOIN sys.data_spaces ds ON
+                i.data_space_id = ds.data_space_id
+        GROUP BY
+            o.schema_id,
+            ds.name,
+            object_name(o.object_id),
+            isnull(i.name,'HEAP'),
+            i.type_desc,
+            reserved_page_count
+    </select>
+
+    <select id="selectProcedure" resultType="io.playce.roro.db.asmt.mssql.dto.Procedure">
+        SELECT
+            db_name() AS database_name,
+            schema_name(p.schema_id) AS schema_name,
+            p.name AS procedure_name,
+            p.type_desc,
+            p.create_date,
+            p.modify_date,
+            p.is_ms_shipped,
+            p.is_published,
+            p.is_schema_published,
+            p.is_auto_executed,
+            p.is_execution_replicated,
+            p.is_repl_serializable_only,
+            p.skips_repl_constraints,
+            r.ROUTINE_DEFINITION AS ddl_script
+        FROM
+            sys.procedures p
+            INNER JOIN information_schema.routines r ON
+                schema_name(p.schema_id) = r.routine_schema
+                AND p.name = r.routine_name
+                AND r.ROUTINE_TYPE = 'PROCEDURE'
+    </select>
+
+    <select id="selectFunction" resultType="io.playce.roro.db.asmt.mssql.dto.Function">
+        SELECT
+            db_name() AS database_name,
+            OBJECT_SCHEMA_NAME(o.object_id) AS schema_name,
+            name AS function_name,
+            type_desc,
+            is_ms_shipped,
+            is_published,
+            is_schema_published,
+            o.create_date,
+            o.modify_date,
+            m.definition AS ddl_script
+        FROM
+            sys.sql_modules m
+            INNER JOIN sys.objects o ON
+                m.object_id = o.object_id
+        WHERE
+            type_desc LIKE '%function%'
+    </select>
+
+    <select id="selectQueue" resultType="io.playce.roro.db.asmt.mssql.dto.Queue">
+        SELECT
+            db_name() AS database_name,
+            OBJECT_SCHEMA_NAME(object_id) AS schema_name,
+            name AS queue_name,
+            type_desc,
+            is_ms_shipped,
+            is_published,
+            is_schema_published,
+            max_readers,
+            is_activation_enabled,
+            is_receive_enabled,
+            is_enqueue_enabled,
+            is_retention_enabled,
+            create_date,
+            modify_date
+        FROM
+            sys.service_queues
+        WHERE
+            name NOT IN ('QueryNotificationErrorsQueue', 'EventNotificationErrorsQueue', 'ServiceBrokerQueue')
+    </select>
+
+    <select id="selectTrigger" resultType="io.playce.roro.db.asmt.mssql.dto.Trigger">
+        SELECT
+            db_name() AS database_name,
+            OBJECT_SCHEMA_NAME(object_id) AS schema_name,
+            name AS trigger_name,
+            parent_class_desc,
+            type_desc,
+            create_date,
+            modify_date,
+            is_ms_shipped,
+            is_disabled,
+            is_not_for_replication,
+            is_instead_of_trigger,
+            OBJECT_DEFINITION(object_id) AS ddl_script
+        FROM
+            sys.triggers
+    </select>
+
+    <select id="selectSequence" resultType="io.playce.roro.db.asmt.mssql.dto.Sequence">
+        <![CDATA[
+        SELECT
+            db_name() AS database_name,
+            schema_name(schema_id) AS schema_name,
+            name AS sequence_name,
+            type_desc,
+            create_date,
+            modify_date,
+            is_ms_shipped,
+            is_published,
+            is_schema_published,
+            start_value,
+            minimum_value,
+            maximum_value,
+            is_cycling,
+            is_cached,
+            cache_size,
+            system_type_id,
+            user_type_id,
+            current_value,
+            is_exhausted,
+            [increment] AS increment,
+            [precision] AS precision,
+            [scale] AS scale
+        FROM
+            sys.sequences
+        WHERE
+            is_ms_shipped = 0
+        ]]>
+    </select>
+
+    <select id="selectSynonym" resultType="io.playce.roro.db.asmt.mssql.dto.Synonym">
+        SELECT
+            db_name() AS database_name,
+            schema_name(schema_id) AS schema_name,
+            name AS synonym_name,
+            type_desc,
+            base_object_name,
+            is_ms_shipped,
+            is_published,
+            is_schema_published,
+            create_date,
+            modify_date
+        FROM
+            sys.synonyms
+    </select>
+    
+    <select id="selectDbSize" parameterType="List" resultType="Long">
+        SELECT
+            SUM(db_size_mb) AS db_size_mb
+        FROM (
+            SELECT
+                SUM(size)*8/1024 AS db_size_mb
+            FROM
+                sys.databases
+                INNER JOIN sys.master_files ON sys.databases.database_id = sys.master_files.database_id
+            WHERE
+                sys.databases.name IN <foreach item="databaseName" index="index" collection="collection" open="(" separator="," close=")">#{databaseName}</foreach>
+            GROUP BY
+                sys.databases.name
+        ) temp
+    </select>
+
+</mapper>

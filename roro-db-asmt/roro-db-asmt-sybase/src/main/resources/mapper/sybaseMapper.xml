@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="database.assessment.sybase">
+
+    <select id="selectInstance" resultType="io.playce.roro.db.asmt.sybase.dto.Instance">
+        SELECT
+            asehostname() AS host_name,
+            @@servername AS server_name,
+            @@version AS product_info,
+            @@sbssav AS version,
+            @@boottime AS startup_time
+    </select>
+
+    <select id="selectServer" resultType="io.playce.roro.db.asmt.sybase.dto.Server">
+        SELECT
+            srvid AS server_id,
+            srvname AS server_name ,
+            srvnetname AS server_net_name,
+            srvsecmech AS server_security_mechanism,
+            (CASE
+                 WHEN srvstatus = 0 THEN 'Timeouts are enabled'
+                 WHEN srvstatus = 1 THEN 'Timeouts are disabled'
+                 WHEN srvstatus = 2 THEN 'Network password encryption is enabled'
+                 WHEN srvstatus = 4 THEN 'Remote server is read only'
+                 WHEN srvstatus = 8 THEN 'Use rpc security model A'
+                 WHEN srvstatus = 16 THEN 'Use rpc security model B'
+                 WHEN srvstatus = 64 THEN 'Use message confidentiality'
+                 WHEN srvstatus = 128 THEN 'Use message integrity'
+                 WHEN srvstatus = 256 THEN 'Mutual authentication'
+                 ELSE CAST(srvstatus AS VARCHAR)
+            END) AS server_status,
+            (CASE
+                 WHEN srvclass = 0 THEN 'Local Server'
+                 WHEN srvclass = 1 THEN 'sql_server class server'
+                 WHEN srvclass = 3 THEN 'direct_connect class server'
+                 WHEN srvclass = 4 THEN 'DB2 class server'
+                 WHEN srvclass = 6 THEN 'sds class server'
+                 WHEN srvclass = 7 THEN 'ASEnterprise class server'
+                 WHEN srvclass = 8 THEN 'ASAnywhere class server'
+                 WHEN srvclass = 9 THEN 'ASIQ class server'
+                 ELSE CAST(srvclass AS VARCHAR)
+            END) AS server_class
+        FROM
+            master.dbo.sysservers
+        ORDER BY
+            srvid
+    </select>
+
+    <select id="selectMemory" resultType="Map">
+        EXEC sp_configure 'Memory Use'
+    </select>
+
+    <select id="selectDevice" resultType="io.playce.roro.db.asmt.sybase.dto.Device">
+        EXEC sp_helpdevice
+    </select>
+
+    <select id="selectSegment" resultType="io.playce.roro.db.asmt.sybase.dto.Segment">
+        SELECT
+            segment,
+            name,
+            status
+        FROM
+            master.dbo.syssegments
+    </select>
+
+    <select id="selectUser" resultType="io.playce.roro.db.asmt.sybase.dto.User">
+        SELECT
+            l.suid,
+            l.dbname,
+            lastlogindate,
+            l.name AS login_name,
+            crdate AS created,
+            u.name AS user_name
+        FROM
+            master.dbo.syslogins l
+            LEFT OUTER JOIN master.dbo.sysusers u ON
+                l.suid = u.suid
+    </select>
+
+    <select id="selectUserRole" parameterType="long" resultType="String">
+        SELECT
+            t2.name AS user_role
+        from
+            master.dbo.sysloginroles t1
+            INNER JOIN master.dbo.syssrvroles t2 ON t1.srid = t2.srid
+        WHERE
+            t1.suid = #{suid}
+    </select>
+
+    <select id="selectJob" resultType="io.playce.roro.db.asmt.sybase.dto.Job">
+        SELECT
+            a.job_name,
+            a.job_description,
+            a.job_owner,
+            a.job_uproperties,
+            a.job_created,
+            js.sched_name,
+            js.sched_description,
+            js.sched_owner,
+            js.sched_interval,
+            js.sched_created,
+            (CASE
+                 WHEN js.sched_interval_units = 'm' THEN 'minute'
+                 WHEN js.sched_interval_units = 'h' THEN 'hour'
+                 WHEN js.sched_interval_units = 'd' THEN 'day'
+                 ELSE sched_interval_units
+            END) AS sched_interval_units
+        FROM
+            (
+                SELECT
+                    job_name,
+                    job_description,
+                    job_owner,
+                    job_uproperties,
+                    job_created,
+                    s.sjob_sched_id
+                FROM
+                    sybmgmtdb.dbo.js_scheduledjobs s
+                    RIGHT OUTER JOIN sybmgmtdb.dbo.js_jobs jj ON
+                        jj.job_id = s.sjob_job_id) a
+                    LEFT OUTER JOIN sybmgmtdb.dbo.js_schedules js ON
+                        js.sched_id = a.sjob_sched_id
+    </select>
+
+    <select id="selectAllDatabase" resultType="io.playce.roro.db.asmt.sybase.dto.Database">
+        <![CDATA[
+        SELECT
+            d.dbid,
+            d.name,
+            ceiling(sum(case when u.segmap != 4 then u.size / 1048576. * @@maxpagesize end)) AS db_size,
+            ceiling(sum(case when u.segmap != 4 then size - curunreservedpgs(u.dbid, u.lstart, u.unreservedpgs) end)/ 1048576. * @@maxpagesize) AS db_used,
+            ceiling(100 * (1 - 1.0 * sum(case when u.segmap != 4 then curunreservedpgs(u.dbid, u.lstart, u.unreservedpgs) end) / sum(case when u.segmap != 4 then u.size end))) AS db_used_pct,
+            s.name AS owner,
+            d.crdate AS created
+        FROM
+            master.dbo.sysdatabases d
+                INNER JOIN master.dbo.sysusages u ON
+                d.dbid = u.dbid
+                INNER JOIN master.dbo.syslogins s ON
+                d.suid = s.suid
+        WHERE
+            d.status <> 256
+            AND d.name NOT IN ('master', 'model', 'tempdb','saptools', 'sybmgmtdb', 'sybsystemdb', 'sybsystemprocs')
+        GROUP BY
+            d.dbid, s.name
+        ]]>
+    </select>
+
+    <select id="selectDatabase" parameterType="String" resultType="io.playce.roro.db.asmt.sybase.dto.Database">
+        <![CDATA[
+        SELECT
+            d.dbid,
+            d.name,
+            ceiling(sum(case when u.segmap != 4 then u.size / 1048576. * @@maxpagesize end)) AS db_size,
+            ceiling(sum(case when u.segmap != 4 then size - curunreservedpgs(u.dbid, u.lstart, u.unreservedpgs) end)/ 1048576. * @@maxpagesize) AS db_used,
+            ceiling(100 * (1 - 1.0 * sum(case when u.segmap != 4 then curunreservedpgs(u.dbid, u.lstart, u.unreservedpgs) end) / sum(case when u.segmap != 4 then u.size end))) AS db_used_pct,
+            s.name AS owner,
+            d.crdate AS created
+        FROM
+            master.dbo.sysdatabases d
+                INNER JOIN master.dbo.sysusages u ON
+                d.dbid = u.dbid
+                INNER JOIN master.dbo.syslogins s ON
+                d.suid = s.suid
+        WHERE
+            d.status <> 256
+            AND d.name = #{databaseName}
+        GROUP BY
+            d.dbid, s.name
+        ]]>
+    </select>
+
+    <select id="selectObjectSummary" resultType="io.playce.roro.db.asmt.sybase.dto.ObjectSummaryTemp">
+        SELECT
+            RTRIM(type) AS type,
+            COUNT(*) AS object_count
+        FROM
+            sysobjects
+        GROUP BY
+            type
+    </select>
+
+    <select id="selectTable" resultType="io.playce.roro.db.asmt.sybase.dto.Table">
+        SELECT
+            db_name() AS database_name,
+            u.name AS owner,
+            convert(varchar(30), o.name) AS table_name,
+            row_count(db_id(), o.id) AS row_count,
+            data_pages(db_id(), o.id, 0) AS page_size,
+            data_pages(db_id(), o.id, 0) * (@@maxpagesize / 1024) AS page_size_kb,
+            crdate AS created
+        FROM
+            sysobjects o
+            INNER JOIN sysusers u ON
+                u.uid = o.uid
+        WHERE
+            type = 'U'
+    </select>
+
+    <select id="selectView" resultType="io.playce.roro.db.asmt.sybase.dto.View">
+        SELECT
+            db_name() AS database_name,
+            id,
+            name,
+            crdate AS created
+        FROM
+            sysobjects
+        WHERE
+            type = 'V'
+    </select>
+
+    <select id="selectIndex" parameterType="io.playce.roro.db.asmt.sybase.dto.Table" resultType="io.playce.roro.db.asmt.sybase.dto.Index">
+        USE #{databaseName}
+        EXEC sp_helpindex #{tableName}
+    </select>
+
+    <select id="selectProcedure" resultType="io.playce.roro.db.asmt.sybase.dto.Procedure">
+        SELECT
+            db_name() AS database_name,
+            id,
+            name,
+            crdate AS created
+        FROM
+            sysobjects
+        WHERE
+            type = 'P'
+    </select>
+
+    <select id="selectFunction" resultType="io.playce.roro.db.asmt.sybase.dto.Function">
+        SELECT
+            db_name() AS database_name,
+            id,
+            name,
+            crdate AS created
+        FROM
+            sysobjects
+        WHERE
+            type = 'SF'
+    </select>
+
+    <select id="selectTrigger" resultType="io.playce.roro.db.asmt.sybase.dto.Trigger">
+        SELECT
+            db_name() AS database_name,
+            id,
+            name,
+            crdate AS created
+        FROM
+            sysobjects
+        WHERE
+            type = 'TR'
+    </select>
+
+    <select id="selectScript" parameterType="long" resultType="String">
+        SELECT
+            text
+        FROM
+            syscomments
+        WHERE
+            id = #{id}
+        ORDER BY
+            colid
+    </select>
+</mapper>

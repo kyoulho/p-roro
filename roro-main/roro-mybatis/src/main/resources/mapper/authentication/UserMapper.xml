@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.authentication.UserMapper">
+
+    <select id="selectLoginUser" parameterType="String" resultType="io.playce.roro.common.dto.auth.LoginUser">
+        select a.user_id,
+               b.user_login_id,
+               b.user_login_password,
+               a.user_name_korean,
+               a.user_name_english,
+               a.user_email,
+               b.user_status_code,
+               b.temp_password_yn,
+               b.block_yn
+        from user_master a
+                 join user_access b on a.user_id = b.user_id
+        where 1 = 1
+          and user_login_id = #{username}
+    </select>
+    <select id="selectUserRoles" resultType="java.lang.String">
+        select 'ROLE_ADMIN'
+    </select>
+
+    <select id="getAuditUser" resultType="io.playce.roro.common.dto.auth.LoginUser$AuditUser">
+        SELECT user_id
+               , user_name_english
+               , user_name_korean
+          FROM user_master
+         WHERE user_id = #{userId}
+    </select>
+
+</mapper>

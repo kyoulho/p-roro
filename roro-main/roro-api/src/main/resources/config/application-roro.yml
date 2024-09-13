@@ -1,0 +1,95 @@
+# --- RoRo Properties --- #
+## JWT
+jwt:
+  token-signing-key: cGxheWNlLW9hdXRo
+  token-expiration-time: 180
+  refresh-token-expiration-time: 720
+
+# Use pseudo tty when execute ssh command
+ssh:
+  pseudo:
+    tty: true
+  cmd:
+    error: RORO:CMD:ERROR
+    whoami:
+      start: RORO:WHOAMI:CMD:START
+      end: RORO:WHOAMI:CMD:END
+    custom:
+      start: RORO:CUSTOM:CMD:START
+      end: RORO:CUSTOM:CMD:END
+  use:
+    bouncy:
+      castle:
+        provider: false
+  preferred:
+    authentications: password,publickey,keyboard-interactive,gssapi-with-mic
+  skip:
+    messages:
+  connect:
+    timeout: 10
+
+windows:
+  temp-dir: C:\temp\roro
+  powershell:
+    use-outfile: false
+
+# Cron Expression for Auto Server Assessment Task
+roro:
+  ## Application Version
+  app-version: "@project.version@"
+  working:
+    dir-path: /opt/roro
+  ## RoRo Server Connection Information for Windows
+  ssh:
+    ip-address:
+    port: 22
+    user-name:
+    password:
+    ppk-file-path:
+  web-terminal: false
+
+  # Cron Expression for connection test (Server & Database)
+  #  connection:
+  #    test:
+  #      enabled: true
+  #      cron_expression: 0 0/5 * * * ?
+  #  server:
+  #    # Assessment auto start for discovered
+  #    auto:
+  #      assessment:
+  #        enabled: true
+  #    # Cron Expression for Auto Server Assessment Task
+  #    assessment:
+  #      enabled: true
+  #      cron_expression: 0 0 0 * * ?
+  #      # Assessment Thread Pool Size
+  #      threadpool_size: 5
+  #      # Assessment auto discover enable
+  #      auto-discover:
+  #        enabled: true
+  #      # Engine default path(s) for Middleware Assessment (use ',' for multiple values)
+  #      default:
+  #        engine:
+  #          path:
+  #    # Migration Thread Pool Size
+  #    migration:
+  #      threadpool_size: 1
+  #      include:
+  #        system:
+  #          uid: false
+  #    # Server Monitoring
+  #    monitoring:
+  #      collector:
+  #        enabled: true
+  #        cron_expression: 0 0 0 * * ?
+  #        threadpool_size: 20
+  #        default:
+  #          enabled: true
+  #          period: 60
+  #          dir: /tmp
+  # Alternative Subscription File Path
+  subscription:
+    path:
+
+  middleware-auto-scan: true
+  application-auto-scan: true

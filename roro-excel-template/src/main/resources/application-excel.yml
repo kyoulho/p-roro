@@ -1,0 +1,166 @@
+excel:
+  sheets:
+    service:
+      bean-name: inventoryExcelServiceForService
+      header-size: 2
+      cols:
+        - serviceId
+        - customerServiceName,serviceName
+        - customerServiceCode
+        - businessCategoryCode
+        - businessCategoryName
+        - labels
+        - description
+        - migrationTargetYn
+        - migrationManMonth
+        - migrationEnvConfigStartDatetime
+        - migrationEnvConfigEndDatetime
+        - migrationTestStartDatetime
+        - migrationTestEndDatetime
+        - migrationCutOverDatetime
+        - severity
+      key-cols:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 7
+    server:
+      bean-name: inventoryExcelServiceForServer
+      header-size: 2
+      cols:
+        - inventoryId
+        - customerInventoryName,inventoryName
+        - customerInventoryCode
+        - windowsYn
+        - representativeIpAddress
+        - connectionPort
+        - userName
+        - userPassword
+        - keyFileName
+        - keyFileContent
+        - enableSuYn
+        - rootPassword
+        - monitoringYn
+        - monitoringCycle
+        - monitoringStartDatetime
+        - monitoringEndDatetime
+        - migrationTypeCode
+        - serverLocation
+        - serverUsageTypeCode
+        - hypervisorTypeCode
+        - dualizationTypeCode
+        - accessControlSystemSolutionName
+        - tpmc
+        - buyDate
+        - makerName
+        - modelName
+        - serialNumber
+        - labels
+        - description
+      key-cols:
+        - 1
+        - 2
+        - 3
+        - 4:ip
+        - 5:port
+        - 6
+        - 10
+        - 12
+    middleware:
+      bean-name: inventoryExcelServiceForMiddleware
+      header-size: 2
+      cols:
+        - inventoryId
+        - customerServerCode
+        - customerInventoryName,inventoryName
+        - customerInventoryCode
+        - dedicatedAuthenticationYn
+        - userName
+        - userPassword
+        - keyFileName
+        - keyFileContent
+        - middlewareTypeCode
+        - vendorName
+        - inventoryDetailTypeCode
+        - engineVersion
+        - engineInstallationPath
+        - domainHomePath
+        - labels
+        - description
+      key-cols:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 9
+        - 11
+        - 13
+    application:
+      bean-name: inventoryExcelServiceForApplication
+      header-size: 2
+      cols:
+        - inventoryId
+        - customerServerCode
+        - customerInventoryName,inventoryName
+        - customerInventoryCode
+        - dedicatedAuthenticationYn
+        - userName
+        - userPassword
+        - keyFileName
+        - keyFileContent
+        - inventoryDetailTypeCode
+        - deployPath
+        - labels
+        - description
+        - sourceLocationUri
+        - uploadSourceFilePath
+        - analysisLibList
+        - analysisStringList
+      key-cols:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 9
+        - 10
+    database:
+      bean-name: inventoryExcelServiceForDatabase
+      header-size: 2
+      cols:
+        - inventoryId
+        - customerServerCode
+        - customerInventoryName,inventoryName
+        - customerInventoryCode
+        - vendor
+        - inventoryDetailTypeCode
+        - engineVersion
+        - connectionPort
+        - databaseServiceName
+        - jdbcUrl
+        - userName
+        - userPassword
+        - databaseAccessControlSystemSolutionName
+        - labels
+        - description
+      key-cols:
+        - 1
+        - 2
+        - 3
+        - 5
+        - 7:port
+        - 8
+        - 9
+        - 10
+        - 11
+    service-mapping:
+      bean-name: inventoryExcelServiceForMappingService
+      header-size: 2
+      cols:
+        - inventoryTypeCode
+        - customerServiceCode
+        - customerInventoryCode
+      key-cols:
+        - 0
+        - 1
+        - 2

@@ -1,0 +1,43 @@
+# thread config
+worker:
+  core-pool-size: 8
+  max-pool-size: 16
+  queue-capacity: 5000
+  thread-name-prefix: ip-
+
+  mig-core-pool-size: 1
+  mig-max-pool-size: 1
+  mig-queue-capacity: 100
+  mig-thread-name-prefix: mig-
+
+  hs-core-pool-size: 16
+  hs-max-pool-size: 32
+  hs-queue-capacity: 65536
+  hs-thread-name-prefix: hs-
+
+scheduler:
+  schedule:
+    prerequisite:
+      init: 2000
+      delay: 2000
+    assessment:
+      init: 3000
+      delay: 2000
+    migration:
+      init: 4000
+      delay: 2000
+    monitoring:
+      cron: 0 0 0/3 * * ?
+      window: 5
+      default-period: 60
+      script-life-hours: 48
+      default-dir: /tmp
+    scheduled-scan:
+      cron: 0 0 0 * * ?
+
+enable:
+  prerequisite.schedule: false
+  assessment.schedule: false
+  migration.schedule: false
+  monitoring.schedule: false
+  scheduled.scan: false

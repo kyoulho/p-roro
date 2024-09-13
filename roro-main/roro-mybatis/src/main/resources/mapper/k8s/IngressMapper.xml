@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.IngressMapper">
+    <resultMap id="ingressResponse" type="io.playce.roro.common.dto.k8s.IngressResponse" autoMapping="true">
+        <collection property="targets" javaType="java.util.ArrayList"
+                    ofType="io.playce.roro.common.dto.k8s.IngressRuleResponse" autoMapping="true">
+        </collection>
+    </resultMap>
+    <select id="selectIngresses" resultMap="ingressResponse">
+        select i.OBJECT_ID               AS ingressId,
+               i.CLASS_NAME              AS name,
+               n.NAMESPACE_ID,
+               n.NAME                    AS namespaceName,
+               CONCAT(ir.HOST, irt.PATH) AS path,
+               s.OBJECT_ID               AS targetServiceId,
+               irt.SERVICE_NAME          AS targetServiceName
+        from ingress i
+                 join object o on i.OBJECT_ID = o.OBJECT_ID
+                 join cluster_scan cs on o.CLUSTER_SCAN_ID = cs.CLUSTER_SCAN_ID
+                 join k8s_cluster k8sc on cs.K8S_CLUSTER_ID = k8sc.K8S_CLUSTER_ID
+                 join namespace_object_link nol on i.OBJECT_ID = nol.OBJECT_ID
+                 join namespace n on nol.NAMESPACE_ID = n.NAMESPACE_ID
+                 join ingress_rule ir on i.OBJECT_ID = ir.OBJECT_ID
+                 join ingress_rule_target irt on ir.INGRESS_RULE_ID = irt.INGRESS_RULE_ID
+                 join service s on irt.SERVICE_NAME like s.NAME
+        where o.CLUSTER_SCAN_ID = #{clusterScanId}
+          and cs.K8S_CLUSTER_ID = #{k8sClusterId}
+          and PROJECT_ID = #{projectId}
+    </select>
+</mapper>

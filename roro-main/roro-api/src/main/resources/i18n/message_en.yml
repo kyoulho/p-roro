@@ -1,0 +1,160 @@
+error:
+  common:
+    badRequest: Bad Request.
+    unauthorized: Unauthorized.
+    forbidden: Forbidden.
+    methodNotAllowed: Method Not Allowed.
+    unsupportedMediaType: Unsupported Media Type.
+    internalServerError: Internal Server Error.
+    unknownError: UnKnouwn Error. Please contact the Administrator.
+    invalidInputValue: Invalid Input Value. (Please check parameter value.)
+    resourceNotFound: The resource corresponding to the given ID does not exist. {0}
+    resourceInUse: The function cannot be performed because the resource is in use.
+    invalidFileType: Invalid support file type. (Please check File type.)
+    fileUploadFail: The file upload failed.
+    fileDownloadFail: The file download failed. {0}
+    constraintViolation: Data constraint violation occurred. {0}
+    illegalArgument: Has been passed an illegal or inappropriate argument. {0}
+    excelCreateFailed: An error occurred while creating the excel file. {0}
+    saveFile: An error occurred while saving the file. {0}
+  auth:
+    userNotFound: User Not Found.
+    passwordIncorrect: Your current password is incorrect.
+    accountLocked: Account Locked.
+    authHeaderBlank: Authorization header cannot be blank.
+    invalidAuthHeaderSize: Invalid authorization header size.
+    invalidJwtSignature: Invalid JWT signature.
+    invalidJwtForm: Invalid JWT Form.
+    expiredJwt: Expired JWT.
+    unsupportedJwt: Unsupported JWT.
+    jwtEmptyClaims: JWT claims String is empty.
+    notTrustedTokenSet: Cannot set this token to trusted.
+    notPermittedToken: Not permitted to Refresh Token.
+    notPermittedAccessToken: Not permitted to Access Token.
+  inventory:
+    service:
+      notFound: Service Not Found.
+      deletedFail: Deleted Fail. server {0}, middleware {1}, application {2}, database {3} still mapped by service.
+      duplicate: Service Name already exists.
+      defaultDeleteFail: Default Service cannot be delete.
+      json:
+        notSupport: Service Report does not support json type.
+    server:
+      notFound: Server Not Found.
+      deletedFail: Deleted Fail. middleware {0}, application {1}, database {2} still mapped by server.
+      duplicate: Server IP Address and Port already exist.
+      required: Server needs at least one service.
+      invalid:
+        keyFile: Invalid Key File.
+        keyFileSize: Invalid Key File Size.
+      notModify: Server cannot be modified.
+      rootPassword:
+        required: Server root password is required when enabled su.
+      cronExpression:
+        notValid: Server Monitoring Cycle 'Cron Expression' is not Valid.
+    middleware:
+      notFound: Middleware Not Found.
+      duplicate: Middleware({0}) already exist.
+    application:
+      notFound: Application Not Found.
+      duplicate: Application({0}) already exist.
+    database:
+      notFound: Database Not Found.
+      duplicate: Database Username and Port already exist.
+      notModify: Database cannot be modified.
+    topology:
+      unsupportedType: This type is not supported.
+    customer:
+      code:
+        duplicate: Inventory code {0} is already exist.
+    invalid:
+      userPassword: Invalid User Password.
+  assessment:
+    notFound: Assessment Not Found.
+    cancel:
+      invalidStatus: Can not cancel. Assessment is not pending or in-progress.
+    delete:
+      invalidStatus: Can not delete. Assessment is not yet finished.
+    duplicated: Assessment already pending or in-progress.
+    zipFailed: >
+      The zip file create failed for the following reason. Reason : {0}
+    result:
+      uploadNotSupport: Assessment Result Upload Not Support.
+  manual:
+    assessment:
+      invalidFile: Can't read assessment file.
+      parsingFailed: >
+        Parsing failed for assessment file. Reason : {0}
+      processingFailed: >
+        Processing failed for assessment file. Reason : {0}
+  tc:
+    aws:
+      authFail: The credential information is incorrect or has no permission to access the region {0}
+      ec2:
+        error: >
+          The request failed for the following reason. Reason : {0}
+    gcp:
+      authFail: The credential information is incorrect or has no permission to access the region {0}
+      gce:
+        error: >
+          The request failed for the following reason. Reason : {0}
+    unsupportedType: ({0}) is unsupported cloud type.
+    credentialNotFound: Credential Not Found.
+    keyFileNotFound: Key File Not Found.
+    credentialInUse: Credential in use.
+    invalidKeyFile: Json key file is not valid. Please check json has project_id, client_email and client_id attributes.
+    invalidCredential: The credential information is not valid. Please check assess_key and secret_access_key is valid.
+  migration:
+    windowsNotSupported: Windows Not Supported.
+    assessmentNotFound: Assessment Result Not Found.
+    preConfigNotFound: PreConfig Not Found.
+    projectIdNotFound: GCP Project ID Not Found.
+    imageIdNotDefined: Image id should be defined.
+    preConfigInUse: Selected PreConfig is used in migration.
+    cancel:
+      invalidStatus: Can not cancel. Migration is not running.
+    ip:
+      invalid: Private IP({0}) is invalid.
+      notDefined: IP should be defined.
+    subnet:
+      notFound: Subnet({0}) does not exist.
+    duplicated: Migration for same server is already pending or in-progress.
+    notFound: Migration Not Found.
+    delete:
+      invalidStatus: Can not delete. Migration is not yet finished.
+  package:
+    notFound: Package Not Found.
+  subscription:
+    notFound: Subscription file not found. You can execute read-only features.
+    invalid: Invalid subscription. You can execute read-only features.
+    signatureNotMatch: Subscription is not suitable for this RoRo server. You can execute read-only features.
+    expired: Subscription expired. You can execute read-only features.
+    countExceeded: The current subscription can not register more than {0} servers.
+    notAllowed1: Subscription file not found.
+    notAllowed2: The current subsciption is not allowed to perform this operation.
+  networkfilter:
+    duplicated: Network filter template name cannot be duplicated.
+  cloudreadiness:
+    invalid: Invalid Cloud Readiness Assessment.
+    notFound: Completed Cloud Readiness Assessment does not exist.
+    scanIncomplete: Scan completed servers do not exist.
+  host.scan:
+    deleteFail: Delete Fail. Scanning is in progress.
+    incompleteScan: "An incomplete scan exists"
+    belowBClass: "The Subnet bits in the searchable range are from 16 to 32"
+  third:
+    party:
+      duplicated: Third-Party Solution Name({0}) already exist.
+      invalidParam: servideIds and serverId cannot be entered at the same time.
+  project:
+    duplicated: Project Name already exists.
+  k8s:
+    cluster.duplicated: Cluster Name already exists.
+
+excel:
+  filename:
+    services: services
+    servers: servers
+    applications: applications
+    databases: databases
+    middlewares: middlewares

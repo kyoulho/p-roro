@@ -1,0 +1,771 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.statistics.StatisticsMapper">
+    <resultMap id="ChartServerCountPerServiceResponse" type="io.playce.roro.common.dto.statistics.ChartServerCountPerServiceResponse" autoMapping="true">
+        <association property="serverCount" autoMapping="true"/>
+    </resultMap>
+
+    <select id="selectOverviewServiceCount" resultType="Integer">
+        SELECT
+            COUNT(*) AS `count`
+        FROM
+            SERVICE_MASTER
+        WHERE
+            delete_yn = 'N'
+            AND project_id = #{projectId}
+            AND service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+    </select>
+
+    <select id="selectOverviewSummaryCount" resultType="Map">
+        SELECT
+            'INVENTORY' AS countType,
+            COUNT(*) AS `count`
+        FROM (
+            SELECT
+                im.inventory_id
+            FROM
+                INVENTORY_MASTER im
+                INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = im.inventory_id
+            WHERE
+                im.delete_yn = 'N'
+                AND im.inventory_type_code = #{inventoryType}
+                AND im.project_id = #{projectId}
+                AND service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            GROUP BY
+                im.inventory_id
+            ) t
+
+        UNION
+
+        SELECT
+            inventory_process_result_code AS countType,
+            COUNT(*) AS `count`
+        FROM (
+            SELECT
+                im.inventory_id
+            FROM
+                INVENTORY_MASTER im
+                INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = im.inventory_id
+            WHERE
+                im.delete_yn = 'N'
+                AND im.inventory_type_code = #{inventoryType}
+                AND im.project_id = #{projectId}
+                AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            GROUP BY
+                im.inventory_id
+            ) a
+            INNER JOIN (
+                SELECT
+                    ipa.inventory_id,
+                    ipa.inventory_process_result_code
+                FROM
+                    INVENTORY_PROCESS ipa
+                    INNER JOIN (
+                        SELECT
+                            inventory_id,
+                            MAX(ipa.inventory_process_id) AS inventory_process_id
+                        FROM
+                            INVENTORY_PROCESS ipa
+                        WHERE
+                            ipa.delete_yn = 'N'
+                            AND ipa.inventory_process_type_code = 'SCAN'
+                            AND ipa.inventory_process_result_code IN ('CMPL', 'PC', 'FAIL')
+                        GROUP BY
+                        inventory_id
+                ) t ON t.inventory_id = ipa.inventory_id AND t.inventory_process_id = ipa.inventory_process_id
+            ) t2 ON t2.inventory_id = a.inventory_id
+        GROUP BY
+            t2.inventory_process_result_code
+    </select>
+
+    <select id="selectServerCountPerService" resultMap="ChartServerCountPerServiceResponse">
+        SELECT
+            t.SERVICE_ID,
+            t.SERVICE_NAME,
+            COUNT(IF(os_type = 'Windows', os_type, null)) as windows,
+            COUNT(IF(os_type = 'Linux', os_type, null))   as linux,
+            COUNT(IF(os_type = 'Unix', os_type, null))    as unix,
+            COUNT(IF(os_type = 'Other', os_type, null))   as other,
+            COUNT(os_type) as total
+        FROM (SELECT sm.service_id,
+                     sm.service_name
+              FROM SERVICE_MASTER sm
+                       LEFT JOIN SERVICE_INVENTORY si ON si.service_id = sm.service_id
+              WHERE sm.delete_yn = 'N'
+                AND sm.service_id in <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+              GROUP BY si.service_id) t
+                 LEFT JOIN (SELECT si.service_id,
+                                   CASE
+                                       WHEN ss.os_name LIKE 'Oracle Linux%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'Rocky%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'CentOS%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'Ubuntu%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'Red Hat Enterprise Linux%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'Debian%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'Fedora%' THEN 'Linux'
+                                       WHEN ss.os_name LIKE 'AIX%' THEN 'Unix'
+                                       WHEN ss.os_name LIKE 'HP%' THEN 'Unix'
+                                       WHEN ss.os_name LIKE 'Sun%' THEN 'Unix'
+                                       WHEN ss.os_name LIKE 'Microsoft%' THEN 'Windows'
+                                       ELSE 'Other'
+                                       END AS os_type
+                            FROM INVENTORY_MASTER sim
+                                     INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+                                     INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id
+                                     LEFT JOIN SERVER_SUMMARY ss ON ss.server_inventory_id = sm.server_inventory_id
+                            WHERE sim.delete_yn = 'N'
+                              AND sim.project_id = #{projectId}
+                              AND sim.inventory_type_code = 'SVR') t2 ON t2.service_id = t.service_id
+        GROUP BY t.SERVICE_ID
+        <if test="sortDirection == 'asc'">
+        ORDER BY total ASC
+        </if>
+        <if test="sortDirection == 'desc'">
+        ORDER BY total DESC
+        </if>
+    </select>
+
+    <sql id="serverOs">
+        CASE
+            WHEN ss.os_name LIKE 'CentOS%' THEN 'CentOS'
+            WHEN ss.os_name LIKE 'Ubuntu%' THEN 'Ubuntu'
+            WHEN ss.os_name LIKE 'Red Hat Enterprise Linux%' THEN 'RHEL'
+            WHEN ss.os_name LIKE 'Oracle Linux%' THEN 'Oracle Linux'
+            WHEN ss.os_name LIKE 'Debian%' THEN 'Debian'
+            WHEN ss.os_name LIKE 'Fedora%' THEN 'Fedora'
+            WHEN ss.os_name LIKE 'AIX%' THEN 'AIX'
+            WHEN ss.os_name LIKE 'HP%' THEN 'HP-UX'
+            WHEN ss.os_name LIKE 'Sun%' THEN 'Solaris'
+            WHEN ss.os_name LIKE 'Microsoft%' THEN 'Windows'
+            WHEN ss.os_name LIKE 'Rocky%' THEN 'Rocky Linux'
+            ELSE 'Other'
+        END AS metric
+    </sql>
+
+    <sql id="serverFamily">
+        CASE
+            WHEN ss.os_name LIKE 'CentOS%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'Ubuntu%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'Red Hat Enterprise Linux%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'Oracle Linux%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'Debian%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'Fedora%' THEN 'Linux'
+            WHEN ss.os_name LIKE 'AIX%' THEN 'Unix'
+            WHEN ss.os_name LIKE 'HP%' THEN 'Unix'
+            WHEN ss.os_name LIKE 'Sun%' THEN 'Unix'
+            WHEN ss.os_name LIKE 'Microsoft%' THEN 'Windows'
+            ELSE 'Other'
+        END AS metric
+    </sql>
+
+    <sql id="serverVendor">
+        CASE
+            WHEN ss.os_name LIKE 'CentOS%' THEN 'Red Hat'
+            WHEN ss.os_name LIKE 'Ubuntu%' THEN 'Canonical'
+            WHEN ss.os_name LIKE 'Red Hat Enterprise Linux%' THEN 'Red Hat'
+            WHEN ss.os_name LIKE 'Oracle Linux%' THEN 'Oracle'
+            WHEN ss.os_name LIKE 'Debian%' THEN 'Debian Project'
+            WHEN ss.os_name LIKE 'Fedora%' THEN 'Fedora Project'
+            WHEN ss.os_name LIKE 'AIX%' THEN 'IBM'
+            WHEN ss.os_name LIKE 'HP%' THEN 'HP'
+            WHEN ss.os_name LIKE 'Sun%' THEN 'Oracle'
+            WHEN ss.os_name LIKE 'Microsoft%' THEN 'Microsoft'
+            ELSE 'Other'
+        END AS metric
+    </sql>
+
+    <select id="selectOsDistribution" resultType="io.playce.roro.common.dto.statistics.ChartMetricResponse">
+        SELECT
+            *
+        FROM (
+             SELECT
+                <if test="metric == 'os'">
+                    <include refid="serverOs" />
+                </if>
+                <if test="metric == 'family'">
+                    <include refid="serverFamily" />
+                </if>
+                <if test="metric == 'vendor'">
+                    <include refid="serverVendor" />
+                </if>
+                  , COUNT(*) AS `count`
+             FROM
+                 INVENTORY_MASTER sim
+                 INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+                 INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id
+                 LEFT JOIN SERVER_SUMMARY ss ON ss.server_inventory_id = sm.server_inventory_id
+             WHERE
+                 sim.delete_yn = 'N'
+                 AND sim.inventory_type_code = 'SVR'
+                 AND sim.project_id = #{projectId}
+                 AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+             GROUP BY
+                 metric
+             ) t
+        ORDER BY
+        <if test="sortDirection == 'asc'">
+            t.count ASC, t.metric ASC
+        </if>
+        <if test="sortDirection == 'desc'">
+            t.count DESC, t.metric ASC
+        </if>
+    </select>
+
+    <select id="selectMiddlewareDistribution" resultType="io.playce.roro.common.dto.statistics.ChartMetricResponse">
+        SELECT
+            metric,
+            COUNT(*) AS `count`
+        FROM (
+            SELECT
+                mim.inventory_id,
+                <if test="metric == 'engine'">
+                    CASE
+                        WHEN mim.inventory_detail_type_code = '' OR mim.inventory_detail_type_code IS NULL THEN 'Other'
+                        ELSE mim.inventory_detail_type_code
+                    END AS metric
+                </if>
+                <if test="metric == 'vendor'">
+                    mm.vendor_name AS metric
+                </if>
+            FROM
+                INVENTORY_MASTER mim
+                INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = mim.inventory_id
+                INNER JOIN MIDDLEWARE_MASTER mm ON mm.middleware_inventory_id = mim.inventory_id
+            WHERE
+                mim.delete_yn = 'N'
+                AND mim.inventory_type_code = 'MW'
+                AND mim.project_id = #{projectId}
+                AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            GROUP BY
+                mim.inventory_id
+            ) t
+        GROUP BY
+            t.metric
+        ORDER BY
+        <if test="sortDirection == 'asc'">
+            `count` ASC, t.metric ASC
+        </if>
+        <if test="sortDirection == 'desc'">
+            `count` DESC, t.metric ASC
+        </if>
+    </select>
+
+    <select id="selectApplicationDistribution" resultType="io.playce.roro.common.dto.statistics.ChartMetricResponse">
+        SELECT
+            metric,
+            COUNT(*) AS `count`
+        FROM (
+            SELECT
+                aim.inventory_id,
+                CASE
+                    WHEN aim.inventory_detail_type_code = '' OR aim.inventory_detail_type_code IS NULL THEN 'Other'
+                    ELSE aim.inventory_detail_type_code
+                END AS metric
+            FROM
+                INVENTORY_MASTER aim
+                INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = aim.inventory_id
+            WHERE
+                aim.delete_yn = 'N'
+                AND aim.inventory_type_code = 'APP'
+                AND aim.project_id = #{projectId}
+                AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            GROUP BY
+                aim.inventory_id
+            ) t
+        GROUP BY
+            t.metric
+        ORDER BY
+        <if test="sortDirection == 'asc'">
+            `count` ASC, t.metric ASC
+        </if>
+        <if test="sortDirection == 'desc'">
+            `count` DESC, t.metric ASC
+        </if>
+    </select>
+
+    <select id="selectDatabaseDistribution" resultType="io.playce.roro.common.dto.statistics.ChartMetricResponse">
+        SELECT
+            metric,
+            COUNT(*) AS `count`
+        FROM (
+            SELECT
+                dim.inventory_id,
+                dim.inventory_detail_type_code AS metric
+            FROM
+                INVENTORY_MASTER dim
+                INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = dim.inventory_id
+            WHERE
+                dim.delete_yn = 'N'
+                AND dim.inventory_type_code = 'DBMS'
+                AND dim.project_id = #{projectId}
+                AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+            GROUP BY
+                dim.inventory_id
+            ) t
+        GROUP BY
+            t.metric
+        ORDER BY
+        <if test="sortDirection == 'asc'">
+            `count` ASC, t.metric ASC
+        </if>
+        <if test="sortDirection == 'desc'">
+            `count` DESC, t.metric ASC
+        </if>
+    </select>
+
+    <sql id="selectFiveMinInterval">
+        <![CDATA[
+        (
+        SELECT
+            s.date_time
+        FROM (
+            SELECT (
+               SELECT
+                   CASE
+                       WHEN DATE_FORMAT(FROM_UNIXTIME(#{chartRequest.startDatetime}), '%i') MOD 5 = 0 THEN DATE_FORMAT(FROM_UNIXTIME(#{chartRequest.startDatetime}), '%Y-%m-%d %H:%i:00')
+                       ELSE STR_TO_DATE(CONCAT(date(FROM_UNIXTIME(#{chartRequest.startDatetime})), ' ', hour(FROM_UNIXTIME(#{chartRequest.startDatetime})),':',floor(minute(FROM_UNIXTIME(#{chartRequest.startDatetime}))/5)*5),'%Y-%m-%d %H:%i') + Interval 5 minute
+                    END start_time
+                ) + INTERVAL seq MINUTE AS date_time FROM seq_0_to_17856_step_5
+            ) AS s
+        WHERE
+            s.date_time <= FROM_UNIXTIME(#{chartRequest.endDatetime})
+        ) t
+        ]]>
+    </sql>
+
+    <select id="selectCpuMonitoringServer" resultType="io.playce.roro.common.dto.statistics.ChartMonitoringResponse">
+        # 모니터링 데이터가 있는 서버만 구한다.
+        # 모니터링 데이터를 기준으로 정렬한 뒤 서버의 정보를 구한다.
+        SELECT
+            sim.inventory_id AS server_inventory_id,
+            sim.inventory_name AS server_inventory_name,
+            CASE
+                WHEN m.type_value IS NULL THEN 'N'
+                ELSE 'Y'
+            END AS is_exist_data
+        FROM
+            INVENTORY_MASTER sim
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id
+            INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+            LEFT JOIN (
+                # 날짜에 해당하는 서버의 평균값, 최대값 중에 최대값을 구한다.
+                SELECT
+                    server_inventory_id,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        MAX(cpu_avg) AS type_value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        MAX(cpu_max) AS type_value
+                    </if>
+                FROM
+                    CPU_MONITORING
+                WHERE
+                    monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                GROUP BY
+                    server_inventory_id
+            ) m ON m.server_inventory_id = sim.inventory_id
+        WHERE
+            delete_yn = 'N'
+            AND sm.monitoring_yn = 'Y'
+            AND sim.inventory_type_code = 'SVR'
+            AND project_id = #{projectId}
+            AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+        GROUP BY
+            sim.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'"></when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    type_value DESC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    type_value ASC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectCpuMonitoringData" resultType="io.playce.roro.common.dto.statistics.ChartData">
+        SELECT
+            IFNULL(cm.server_inventory_id, #{serverId}) AS server_inventory_id,
+            t.date_time AS `time`,
+            IFNULL(cm.value, 0) AS value
+        FROM
+            <include refid="selectFiveMinInterval" />
+            LEFT JOIN (
+                SELECT
+                    server_inventory_id,
+                    monitoring_datetime,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        cpu_avg AS value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        cpu_max AS value
+                    </if>
+                FROM
+                    CPU_MONITORING
+                WHERE
+                    server_inventory_id = #{serverId}
+                    AND monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+            ) cm ON cm.monitoring_datetime = t.date_time
+        ORDER BY
+            t.date_time ASC
+    </select>
+
+    <select id="selectMemoryUtilMonitoringServer" resultType="io.playce.roro.common.dto.statistics.ChartMonitoringResponse">
+        # 모니터링 데이터가 있는 서버만 구한다.
+        # 모니터링 데이터를 기준으로 정렬한 뒤 서버의 정보를 구한다.
+        SELECT
+            sim.inventory_id AS server_inventory_id,
+            sim.inventory_name AS server_inventory_name,
+            CASE
+                WHEN m.type_value IS NULL THEN 'N'
+                ELSE 'Y'
+            END AS is_exist_data
+        FROM
+            INVENTORY_MASTER sim
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id
+            INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+            LEFT JOIN (
+                # 날짜에 해당하는 서버의 평균값, 최대값 중에 최대값을 구한다.
+                SELECT
+                    server_inventory_id,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        MAX(memory_avg) AS type_value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        MAX(memory_max) AS type_value
+                    </if>
+                FROM
+                    MEMORY_MONITORING
+                WHERE
+                    monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                GROUP BY
+                    server_inventory_id
+            ) m ON m.server_inventory_id = sim.inventory_id
+        WHERE
+            delete_yn = 'N'
+            AND sm.monitoring_yn = 'Y'
+            AND sim.inventory_type_code = 'SVR'
+            AND project_id = #{projectId}
+            AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+        GROUP BY
+            sim.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'"></when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    type_value DESC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    type_value ASC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectMemoryUtilMonitoringData" resultType="io.playce.roro.common.dto.statistics.ChartData">
+        SELECT
+            IFNULL(mm.server_inventory_id, #{serverId}) AS server_inventory_id,
+            t.date_time AS `time`,
+            IFNULL(mm.value, 0) AS value
+        FROM
+            <include refid="selectFiveMinInterval" />
+            LEFT JOIN (
+                SELECT
+                    server_inventory_id,
+                    monitoring_datetime,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        memory_avg AS value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        memory_max AS value
+                    </if>
+                FROM
+                    MEMORY_MONITORING
+                WHERE
+                    server_inventory_id = #{serverId}
+                    AND monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+            ) mm ON mm.monitoring_datetime = t.date_time
+        ORDER BY
+            t.date_time ASC
+    </select>
+
+    <select id="selectMemoryUsageMonitoringServer" resultType="io.playce.roro.common.dto.statistics.ChartMonitoringResponse">
+        # 모니터링 데이터가 있는 서버만 구한다.
+        # 모니터링 데이터를 기준으로 정렬한 뒤 서버의 정보를 구한다.
+        SELECT
+            sim.inventory_id AS server_inventory_id,
+            sim.inventory_name AS server_inventory_name,
+            CASE
+                WHEN m.type_value IS NULL THEN 'N'
+                ELSE 'Y'
+            END AS is_exist_data
+        FROM
+            INVENTORY_MASTER sim
+            INNER JOIN SERVER_MASTER sm ON sm.server_inventory_id = sim.inventory_id
+            INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+            LEFT JOIN (
+                # 날짜에 해당하는 서버의 평균값, 최대값 중에 최대값을 구한다.
+                SELECT
+                    server_inventory_id,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        MAX(memory_usage_avg) AS type_value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        MAX(memory_usage_max) AS type_value
+                    </if>
+                FROM
+                    MEMORY_MONITORING
+                WHERE
+                    monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                GROUP BY
+                    server_inventory_id
+            ) m ON m.server_inventory_id = sim.inventory_id
+        WHERE
+            delete_yn = 'N'
+            AND sm.monitoring_yn = 'Y'
+            AND sim.inventory_type_code = 'SVR'
+            AND project_id = #{projectId}
+            AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+        GROUP BY
+            sim.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'"></when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    type_value DESC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    type_value ASC, sim.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectMemoryUsageMonitoringData" resultType="io.playce.roro.common.dto.statistics.ChartData">
+        SELECT
+            IFNULL(mm.server_inventory_id, #{serverId}) AS server_inventory_id,
+            t.date_time AS `time`,
+            IFNULL(mm.value, 0) AS value
+        FROM
+            <include refid="selectFiveMinInterval" />
+            LEFT JOIN (
+                SELECT
+                    server_inventory_id,
+                    monitoring_datetime,
+                    <if test="chartRequest.measurementType == 'avg'">
+                        memory_usage_avg AS value
+                    </if>
+                    <if test="chartRequest.measurementType == 'max'">
+                        memory_usage_max AS value
+                    </if>
+                FROM
+                    MEMORY_MONITORING
+                WHERE
+                    server_inventory_id = #{serverId}
+                    AND monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+            ) mm ON mm.monitoring_datetime = t.date_time
+        ORDER BY
+            t.date_time ASC
+    </select>
+
+    <select id="selectCpuUtilUsageServer" resultType="io.playce.roro.common.dto.statistics.ChartUsageResponse">
+        SELECT
+            s.inventory_id AS server_inventory_id ,
+            s.inventory_name AS server_inventory_name,
+            m.type_value AS utilization
+        FROM (
+             SELECT
+                 sim.inventory_id,
+                 sim.inventory_name
+             FROM
+                 INVENTORY_MASTER sim
+                 INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+                 INNER JOIN SERVICE_MASTER sm ON sm.service_id = si.service_id
+                 INNER JOIN SERVER_MASTER sm2 ON sm2.server_inventory_id = sim.inventory_id
+             WHERE
+                 sim.delete_yn = 'N'
+                 AND sm.delete_yn = 'N'
+                 AND sm2.monitoring_yn = 'Y'
+                 AND sim.project_id = #{projectId}
+                 AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+                 AND sim.inventory_type_code = 'SVR'
+             GROUP BY
+                 sim.inventory_id
+             ) s
+             INNER JOIN (
+                 SELECT
+                     server_inventory_id,
+                     <if test="chartRequest.measurementType == 'avg'">
+                         AVG(cpu_avg) AS type_value
+                     </if>
+                     <if test="chartRequest.measurementType == 'max'">
+                         MAX(cpu_max) AS type_value
+                     </if>
+                 FROM
+                     CPU_MONITORING
+                 WHERE
+                     monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                 GROUP BY
+                     server_inventory_id
+            ) m ON m.server_inventory_id = s.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+            </when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    m.type_value ASC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectMemoryUtilUsageServer" resultType="io.playce.roro.common.dto.statistics.ChartUsageResponse">
+        SELECT
+            s.inventory_id AS server_inventory_id,
+            s.inventory_name AS server_inventory_name,
+            m.type_value AS utilization
+        FROM (
+             SELECT
+                 sim.inventory_id,
+                 sim.inventory_name
+             FROM
+                 INVENTORY_MASTER sim
+                 INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+                 INNER JOIN SERVICE_MASTER sm ON sm.service_id = si.service_id
+                 INNER JOIN SERVER_MASTER sm2 ON sm2.server_inventory_id = sim.inventory_id
+             WHERE
+                 sim.delete_yn = 'N'
+                 AND sm.delete_yn = 'N'
+                 AND sm2.monitoring_yn = 'Y'
+                 AND sim.project_id = #{projectId}
+                 AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+                 AND sim.inventory_type_code = 'SVR'
+             GROUP BY
+                 sim.inventory_id
+             ) s
+             INNER JOIN (
+                 SELECT
+                     server_inventory_id,
+                     <if test="chartRequest.measurementType == 'avg'">
+                         AVG(memory_avg) AS type_value
+                     </if>
+                     <if test="chartRequest.measurementType == 'max'">
+                         MAX(memory_max) AS type_value
+                     </if>
+                 FROM
+                     MEMORY_MONITORING
+                 WHERE
+                     monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                 GROUP BY
+                     server_inventory_id
+            ) m ON m.server_inventory_id = s.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+            </when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    m.type_value ASC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectDiskUtilUsageServer" resultType="io.playce.roro.common.dto.statistics.ChartUsageResponse">
+        SELECT
+            s.inventory_id AS server_inventory_id,
+            s.inventory_name AS server_inventory_name,
+            m.device,
+            m.partition,
+            m.type_value AS utilization
+        FROM (
+             SELECT
+                 sim.inventory_id,
+                 sim.inventory_name
+             FROM
+                 INVENTORY_MASTER sim
+                 INNER JOIN SERVICE_INVENTORY si ON si.inventory_id = sim.inventory_id
+                 INNER JOIN SERVICE_MASTER sm ON sm.service_id = si.service_id
+                 INNER JOIN SERVER_MASTER sm2 ON sm2.server_inventory_id = sim.inventory_id
+             WHERE
+                 sim.delete_yn = 'N'
+                 AND sm.delete_yn = 'N'
+                 AND sm2.monitoring_yn = 'Y'
+                 AND sim.project_id = #{projectId}
+                 AND si.service_id IN <foreach item="serviceId" index="index" collection="serviceIds" open="(" separator="," close=")">#{serviceId}</foreach>
+                 AND sim.inventory_type_code = 'SVR'
+             GROUP BY
+                 sim.inventory_id
+             ) s
+             INNER JOIN (
+                 SELECT
+                     dm.server_inventory_id,
+                     sdi.device_name AS device,
+                     dm.device_name AS `partition`,
+                     <if test="chartRequest.measurementType == 'avg'">
+                         AVG(disk_avg) AS type_value
+                     </if>
+                     <if test="chartRequest.measurementType == 'max'">
+                         MAX(disk_max) AS type_value
+                     </if>
+                 FROM
+                     DISK_MONITORING dm
+                     INNER JOIN SERVER_DISK_INFORMATION sdi ON sdi.server_inventory_id = dm.server_inventory_id
+                 WHERE
+                     monitoring_datetime BETWEEN FROM_UNIXTIME(#{chartRequest.startDatetime}) AND FROM_UNIXTIME(#{chartRequest.endDatetime})
+                     AND dm.device_name = sdi.mount_path
+                 GROUP BY
+                     dm.server_inventory_id
+            ) m ON m.server_inventory_id = s.inventory_id
+        <choose>
+            <when test="chartRequest.limitType == 'all'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+            </when>
+            <when test="chartRequest.limitType == 'top'">
+                ORDER BY
+                    m.type_value DESC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+            <when test="chartRequest.limitType == 'bottom'">
+                ORDER BY
+                    m.type_value ASC, s.inventory_name ASC
+                LIMIT
+                    0, #{chartRequest.limitCount}
+            </when>
+        </choose>
+    </select>
+
+</mapper>

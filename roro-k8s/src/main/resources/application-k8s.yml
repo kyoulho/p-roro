@@ -1,0 +1,57 @@
+k8s:
+  scheduler:
+    enable: true
+    init-delay: 2500
+    interval: 5000
+  thread:
+    core-pool-size: 2
+    max-pool-size: 4
+    queue-capacity: 10
+    thread-name-prefix: k8s-
+  process-command:
+    - GET_CLUSTER_VERSION
+    - GET_NODE
+    - GET_NAMESPACE
+    - GET_POD
+    - GET_SERVICE
+    - GET_INGRESS
+  command-map:
+    GET_NODE:
+      - command-string: kubectl --kubeconfig KUBECONFIG get node -o json
+        handler-name: nodeHandler
+        parser-name: jsonParser
+
+    GET_NAMESPACE:
+      - command-string: kubectl --kubeconfig KUBECONFIG get namespace -o json
+        handler-name: namespaceHandler
+        parser-name: jsonParser
+
+    GET_DAEMON_SET:
+      - command-string: kubectl --kubeconfig KUBECONFIG get daemonsets.apps -A -o json
+        handler-name: daemonSetHandler
+        parser-name: jsonParser
+
+    GET_CRONJOB:
+      - command-string: kubectl --kubeconfig KUBECONFIG get cronjob.batch -A -o json
+        handler-name: cronjobHandler
+        parser-name: jsonParser
+
+    GET_POD:
+      - command-string: kubectl --kubeconfig KUBECONFIG get pods -A -o json
+        handler-name: podHandler
+        parser-name: jsonParser
+
+    GET_CLUSTER_VERSION:
+      - command-string: kubectl --kubeconfig KUBECONFIG version --short
+        handler-name: versionHandler
+        parser-name: versionParser
+
+    GET_SERVICE:
+      - command-string: kubectl --kubeconfig KUBECONFIG get service -A -o json
+        handler-name: k8sServiceHandler
+        parser-name: jsonParser
+
+    GET_INGRESS:
+      - command-string: kubectl --kubeconfig KUBECONFIG get ingress -A -o json
+        handler-name: ingressHandler
+        parser-name: jsonParser

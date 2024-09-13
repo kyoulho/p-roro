@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.ClusterMapper">
+    <select id="findByProjectId" parameterType="java.lang.Long" resultType="io.playce.roro.common.dto.k8s.ClusterResponse">
+        select c.k8s_cluster_id,
+               c.name,
+               s.scan_status_message,
+               c.last_cluster_scan_id,
+               c.register_user_id,
+               c.register_user_login_id,
+               c.register_datetime,
+               c.modify_datetime,
+               c.modify_user_login_id,
+               c.modify_user_id,
+               s.server_version,
+               s.scan_status
+        from k8s_cluster c
+        INNER JOIN cluster_scan s ON c.last_cluster_scan_id = s.cluster_scan_id
+        where c.project_Id = #{projectId}
+    </select>
+
+    <select id="findByK8sClusterId" parameterType="java.lang.Long" resultType="io.playce.roro.common.dto.k8s.ClusterResponse">
+        select c.k8s_cluster_id,
+               c.name,
+               s.scan_status_message,
+               c.last_cluster_scan_id,
+               c.register_user_id,
+               c.register_user_login_id,
+               c.register_datetime,
+               c.modify_datetime,
+               c.modify_user_login_id,
+               c.modify_user_id,
+               s.server_version,
+               s.scan_status
+        FROM k8s_cluster c
+                 INNER JOIN cluster_scan s ON c.last_cluster_scan_id = s.cluster_scan_id
+        WHERE c.k8s_cluster_id = #{k8sClusterId}
+
+    </select>
+</mapper>

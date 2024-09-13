@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.trackinginfo.TrackingInfoMapper">
+    <select id="getTwiceScanCompletedInventoryIds"  resultType="java.lang.Long">
+        SELECT im.INVENTORY_ID
+        FROM inventory_process ip
+                 JOIN inventory_master im on ip.INVENTORY_ID = im.INVENTORY_ID
+        WHERE PROJECT_ID = #{projectId}
+          AND INVENTORY_PROCESS_TYPE_CODE = 'SCAN'
+          AND INVENTORY_PROCESS_RESULT_CODE = 'CMPL'
+          AND INVENTORY_TYPE_CODE = #{inventoryTypeCode}
+        GROUP BY im.INVENTORY_ID
+        HAVING count(INVENTORY_PROCESS_ID) >= 2;
+    </select>
+
+    <select id="getScanCompletedInventoryProcessIdLimit2"  resultType="java.lang.Long">
+        SELECT INVENTORY_PROCESS_ID
+        FROM inventory_process ip
+        WHERE ip.INVENTORY_ID = #{inventoryId}
+          AND INVENTORY_PROCESS_TYPE_CODE = 'SCAN'
+          AND INVENTORY_PROCESS_RESULT_CODE = 'CMPL'
+        ORDER BY INVENTORY_PROCESS_END_DATETIME DESC
+        LIMIT 2
+    </select>
+
+    <select id="getWidgetDto" resultType="io.playce.roro.common.dto.trackinginfo.TrackingInfoWidgetDto">
+        SELECT SUM(result) AS changeCount, INVENTORY_NAME, INVENTORY_ID, INVENTORY_PROCESS_END_DATETIME AS lastScanDate
+        FROM (SELECT IF(last.CONTENT = penult.CONTENT, 0, 1) AS result,
+                     last.INVENTORY_NAME,
+                     last.INVENTORY_ID,
+                     last.INVENTORY_PROCESS_END_DATETIME
+              FROM (SELECT TRACKING_KEY, CONTENT, im.INVENTORY_ID, INVENTORY_NAME, INVENTORY_PROCESS_END_DATETIME
+                    FROM tracking_info ti
+                    JOIN inventory_process ip on ti.INVENTORY_PROCESS_ID = ip.INVENTORY_PROCESS_ID
+                    JOIN inventory_master im on ip.INVENTORY_ID = im.INVENTORY_ID
+                    WHERE ip.INVENTORY_PROCESS_ID = #{lastInventoryProcessId}) last
+              LEFT JOIN (SELECT TRACKING_KEY, CONTENT
+                         FROM tracking_info ti
+                         WHERE ti.INVENTORY_PROCESS_ID = #{penultimateInventoryProcessId}) penult
+              ON last.TRACKING_KEY = penult.TRACKING_KEY
+              WHERE last.TRACKING_KEY not like 'FILE_SYSTEM') result
+    </select>
+
+    <select id="getCompareDtoList" resultType="io.playce.roro.common.dto.trackinginfo.TrackingInfoCompareRawDto">
+        SELECT selected.TRACKING_KEY , selected.CONTENT AS selected, compared.CONTENT AS compare
+        FROM (SELECT TRACKING_KEY, CONTENT
+              FROM tracking_info ti
+              WHERE ti.INVENTORY_PROCESS_ID = #{selectedInventoryProcessId}) selected
+        LEFT JOIN (SELECT TRACKING_KEY, CONTENT
+                   FROM tracking_info ti
+                   WHERE ti.INVENTORY_PROCESS_ID = #{compareInventoryProcessId}) compared
+        ON selected.TRACKING_KEY = compared.TRACKING_KEY
+        WHERE selected.CONTENT != compared.CONTENT
+   </select>
+</mapper>

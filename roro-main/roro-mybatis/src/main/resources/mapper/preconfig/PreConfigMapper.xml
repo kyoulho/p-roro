@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.preconfig.PreConfigMapper">
+    <select id="getPreConfigs" resultType="io.playce.roro.common.dto.preconfig.PreConfigResponse">
+        SELECT i.project_id
+               , mpc.server_inventory_id
+               , mpc.migration_pre_config_id
+               , mpc.credential_id
+               , mpc.config_name
+               , mpc.region
+               , mpc.gcp_project_id
+               , mpc.image_id
+               , mpc.connect_ip_address
+               , mpc.connect_ssh_port
+               , mpc.connect_user_name
+               , mpc.connect_user_password
+               , mpc.key_pair
+               , mpc.pub_key
+               , mpc.key_file_name
+               , mpc.key_file_path
+               , mpc.packages
+               , mpc.init_script
+        	   , mpc.regist_datetime
+        	   , mpc.regist_user_id
+        	   , re.user_login_id AS regist_user_login_id
+        	   , mpc.modify_datetime
+        	   , mpc.modify_user_id
+        	   , mo.user_login_id AS modify_user_login_id
+          FROM migration_pre_config mpc LEFT JOIN inventory_master i
+        	ON mpc.server_inventory_id = i.inventory_id INNER JOIN user_access re
+        	ON mpc.regist_user_id = re.user_id INNER JOIN user_access mo
+        	ON mpc.modify_user_id = mo.user_id
+         WHERE mpc.delete_yn = 'N'
+           AND i.project_id = #{projectId}
+           AND mpc.server_inventory_id = #{serverId}
+         GROUP BY mpc.migration_pre_config_id
+         ORDER BY mpc.migration_pre_config_id DESC
+    </select>
+
+    <select id="getPreConfig" resultType="io.playce.roro.common.dto.preconfig.PreConfigResponse">
+        SELECT i.project_id
+               , mpc.server_inventory_id
+               , mpc.migration_pre_config_id
+               , mpc.credential_id
+               , mpc.config_name
+               , mpc.region
+               , mpc.gcp_project_id
+               , mpc.image_id
+               , mpc.connect_ip_address
+               , mpc.connect_ssh_port
+               , mpc.connect_user_name
+               , mpc.connect_user_password
+               , mpc.key_pair
+               , mpc.pub_key
+               , mpc.key_file_name
+               , mpc.key_file_path
+               , mpc.packages
+               , mpc.init_script
+        	   , mpc.regist_datetime
+        	   , mpc.regist_user_id
+        	   , re.user_login_id AS regist_user_login_id
+        	   , mpc.modify_datetime
+        	   , mpc.modify_user_id
+        	   , mo.user_login_id AS modify_user_login_id
+          FROM migration_pre_config mpc LEFT JOIN inventory_master i
+        	ON mpc.server_inventory_id = i.inventory_id INNER JOIN user_access re
+        	ON mpc.regist_user_id = re.user_id INNER JOIN user_access mo
+        	ON mpc.modify_user_id = mo.user_id
+         WHERE mpc.delete_yn = 'N'
+           AND i.project_id = #{projectId}
+           AND mpc.server_inventory_id = #{serverId}
+           AND mpc.migration_pre_config_id = #{preConfigId}
+    </select>
+</mapper>

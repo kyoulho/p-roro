@@ -1,0 +1,200 @@
+command:
+  unix:
+    CAT: "sudo cat %s"
+    CAT_QUOTATION: "sudo cat \"%s\""
+    FILE_EXISTS: "sudo /bin/sh -c \"[ -f '%s' ] && echo 'EXIST' || echo 'NOT_EXIST'\""
+    JAVA_VERSION_WITH_JAVAHOME: sudo java -version 2>&1 | head -n 1 | awk -F '"' '{print $2}'
+    JAVA_VERSION_WITH_JAVAPATH: "sudo %s/bin/java -version 2>&1 | head -n 1 | awk -F '\"' '{print $2}'"
+    JAVA_VERSION: "sudo %s -version 2>&1 | head -n 1 | awk -F '\"' '{print $2}'"
+    JAVA_VENDOR_WITH_JAVAHOME: "sudo java -XshowSettings:properties 2>&1 | grep 'java.vendor'"
+    JAVA_VENDOR_WITH_JAVAPATH: "sudo %s/bin/java -XshowSettings:properties 2>&1 | grep 'java.vendor'"
+    JAVA_VENDOR: "sudo %s -XshowSettings:properties 2>&1 | grep 'java.vendor'"
+    PROCESS_STATUS: sudo ps -ef | egrep '%s($|\s)' | grep -v grep | awk '{print $2}'
+    #    PROCESS_ARGUMENT: sudo ps -eo args | grep %s | grep -v grep | tr ' ' '\n'
+    PROCESS_ARGUMENT: "sudo ps -eo args | grep '%s' | grep -v grep || ps -ex | grep '%s' | grep -v grep | awk '{ s = \"\"; for (i = 4; i <= NF; i++) s = s $i \" \"; print s }'"
+    RUN_USER: sudo ps -ef | egrep '%s($|\s)' | grep -v grep | awk '{print $1}' | uniq
+    JAVA_HOME_COMMAND: sudo echo $JAVA_HOME
+    CELL_COMMAND_CHECK_DIRECTORY: "sudo if test -d \"%s\"; then echo \"exist\"; fi"
+    CELL_COMMAND_EMPTY_DIRECTORY: "sudo ls -F %s"
+    # windows command와 짝을 맞추기위해서 grep 함.
+    LS_FILES: sudo ls %s | grep %s
+    JAVA_PATH: sudo ps -ef | egrep '%s($|\s)' | grep -v grep | awk '{print $8}' | head -1
+    GET_PROCESS: sudo ps -ef | grep '%s($|\s)' | grep -v grep
+    EXECUTED_TIME: sudo ps -eo "%%p %%U %%t %%a" | grep %s | grep -v grep | awk '{print $3}' | head -1
+    FIND_FILE_WITH_PATH1: sudo find %s -type f -path '%s' 2> /dev/null
+    FIND_FILE_WITH_PATH2:
+    GET_USER_BY_PID: //for windows
+    FILE_LIST_ONE_LINE: sudo ls %s | cat
+
+    # tomcat은 SSHUtil2사용 sudo를 받아서 
+    TOMCAT_JAVA_PATH: ps -ef | grep [c]atalina.base | egrep '%s($|\s)' | awk '{print $8}' | head -1
+    TOMCAT_CONFIG_SERVER: cat %s
+    TOMCAT_CONFIG_ENV: cat %s
+    TOMCAT_CONFIG_CONTEXT: cat %s
+    TOMCAT_CONFIG_SETENV: cat %s
+    CHECK_PATH: cd %s
+    TOMCAT_VERSION: sh %s/bin/version.sh | grep 'Server version:'
+    TOMCAT_NUMBER: sh %s/bin/version.sh | grep 'Server number:'
+    TOMCAT_VERSION_SERVICE: //for windows
+    TOMCAT_RELEASE_NOTE: cat %s/RELEASE-NOTES* | grep 'Apache Tomcat Version'
+    TOMCAT_VMOPTION: ps -ef | grep java | grep catalina.bas[e] | egrep '%s($|\s)' | head -1
+    TOMCAT_DIRECTORY: ls -l %s | grep ^d
+    TOMCAT_RUN_USER: ps -ef | grep [c]atalina.base | egrep '%s($|\s)' | awk '{print $1}' | head -1
+
+    APACHE_RUN_USER: sudo ps -ef | grep httpd | grep %s | grep -v grep | awk '{print $1}' | uniq | head -1
+    APACHE_RUN_USER1: sudo ps -ef | grep %s | grep -v grep | awk '{print $1}' | uniq | head -1
+    APACHE_VERSION: "sudo %s -v"
+    APACHE_DUMP: "sudo %s -D DUMP_INCLUDES 2> /dev/null"
+    APACHE_EXECUTED_TIME: sudo ps -eo '%%p %%U %%t %%a' | grep httpd | grep %s | grep -v grep | awk '{print $3}' | head -1
+    APACHE_EXECUTED_TIME_NOT_MONITOR: sudo ps -eo "%%p %%U %%t %%a" | grep %s | grep -v grep | awk '{print $3}' | head -1
+
+    #    WEBLOGIC_CHECK_PROCESS: "ps -ef | grep java | grep weblogic.Server | grep weblogic.Name=%s | grep -v grep | awk {'print $2\" \"$3'}"
+    #    WEBLOGIC_DOMAIN: "ps -ef | grep %s | grep -v %s | grep -v grep | awk {'print %s'}"
+    #    WEBLOGIC_PROCESS_NAME: "ps -ef | grep weblogic.Server | grep weblogic.Name=%s"
+    #    WEBLOGIC_PROCESS_LINK: "readlink -f /proc/%s/cwd"
+
+    # https://cloud-osci.atlassian.net/browse/PCR-5637
+    # JEUS_VERSION: sudo su - %s --shell /bin/sh -c '%s/bin/jeusadmin -version | egrep "^JEUS" | head -1'
+    JEUS_VERSION: sudo /bin/sh -c '%s/bin/jeusadmin -version | egrep "^JEUS" | head -1'
+    JEUS_PROCESS: sudo ps -ef | grep java | grep [j]eus.server | grep %s
+    JEUS_EXECUTED_TIME: sudo ps -eo "%%p %%U %%t %%a" | grep jeus.server | grep %s | grep -v grep | awk '{print $3}' | head -1
+    #    JEUS_CHECK_DIR: sudo bash -c "[ -d '%s' ] && echo 'DIR' || echo 'FILE'"
+    JEUS_DEPLOYED_DATE: sudo ls -ld %s --time-style long-iso | grep %s | awk '{print $6" "$7}' | tr -d '\n'
+    JEUS_DOMAIN_PATH_SCENARIO_STEP31: sudo find %s/config -name JEUSMain.xml | grep -v example | grep -v security 2>/dev/null
+    JEUS_DOMAIN_PATH_SCENARIO_STEP32:
+    JEUS_VERSION_SCENARIO1: sudo su - %s --shell /bin/sh -c '%s/bin/jeusadmin -version | egrep "^JEUS" | head -1' 2>/dev/null
+    JEUS_VERSION_SCENARIO2: /bin/sh -c '%s/bin/jeusadmin -version | egrep "^JEUS" | head -1'
+    JEUS_VERSION_SCENARIO3: sudo su - %s -c '%s/bin/jeusadmin -version | egrep "^JEUS" | head -1'
+
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP1: sudo ps -efx | grep %s | grep %s
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP21: env | grep WEBTOBDIR
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP22: sudo su - %s --shell /bin/sh -c 'env | grep WEBTOBDIR' 2>/dev/null
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP51: sudo su - %s --shell /bin/sh -c 'which %s' 2>/dev/null
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP31: sudo su - %s -c 'env | grep WEBTOBDIR'
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP32: sudo su - %s -c 'which %s'
+    COMMAND_WHICH: source ~/.*profile || . ~/.*profile && which %s
+    WEBTOB_VERSION: sudo %s -v 2>&1 | head -1
+    WEBTOB_RUN_USER: "sudo ps -ef | grep -v grep | grep -e wsm -e htl -e hth | awk '{print $1}' | uniq | tr -d '\n'"
+    WEBTOB_FIND_CONFIG_FILE1: sudo find %s -name '*.m'
+    WEBTOB_FIND_CONFIG_FILE2:
+
+    GET_USERNAME_FROM_UID: "sudo awk -F: '{if($3 == '\"%s\"') print $1}' /etc/passwd"
+    GET_USERNAME_FROM_USER: "sudo awk -F: '{print $1}' /etc/passwd | egrep '^%s'"
+
+    #JBOSS
+    JBOSS_VERSION: sh %s/bin/standalone.sh --version
+    JBOSS_VERSION_NOTE: cat %s/version.txt
+    JBOSS_VMOPTION: ps -ef | grep java | grep jboss | grep -v grep | grep %s
+    JBOSS_STANDALONE_XML: cat %s
+    JBOSS_DOMAIN_XML: cat %s
+    JBOSS_DOMAIN_HOST_XML: cat %s
+    JBOSS_STANDALONE_SETUP_ENV: cat %s
+    JBOSS_WEB_XML: cat %s
+    JBOSS_JAVA_PATH: ps -ef | grep java | grep '%s' | grep '%s' | grep '/bin/java' | grep -v grep | awk '{print $8}' | head -1
+    JBOSS_RUN_USER: ps -ef | grep jboss | grep '%s' | grep '%s' | grep home.dir='%s' | grep base.dir='%s' | grep -v grep | awk '{print $1}'
+    JBOSS_RUN_SERVER: ps -ef | grep java | grep jboss | grep -v grep | grep '%s' | grep '%s'
+    JBOSS_PROCESS_RUN_SERVER: ps -ef | grep jboss | grep '%s' | grep '%s' | grep -v grep | awk '{print $1}'
+    JBOSS_CURRENT_SEVER_VMOPTION: ps -ef | grep java | grep jboss | grep '%s' | grep '%s' | grep -v org.jboss.as.standalone | grep -v 'Process Controller' | grep -v 'Host Controller' | grep '%s'
+    JBOSS_LISTEN_PORT: netstat -na | grep '%s' | grep -v grep | grep LISTEN
+
+    #NGINX
+    NGINX_MASTER_PROCESS_PID: sudo ps -ef | grep nginx | grep master | grep process | grep -v grep | uniq | awk '{print $2}' | head -1
+    NGINX_VERSION: sudo %s -v 2>&1
+    NGINX_CONFIG_FILE: sudo %s -t 2>&1
+
+  windows:
+    CAT: type "%s"
+    CAT_QUOTATION: type "%s"
+    FILE_EXISTS: IF EXIST "%s" (echo EXIST) ELSE (echo NOT_EXIST)
+    JAVA_VERSION_WITH_JAVAHOME: java -version 2>&1 | findstr /i "version"
+    JAVA_VERSION_WITH_JAVAPATH: "\"%s\\bin\\java\" -version 2>&1 | findstr /i \"version\""
+    JAVA_VERSION: "\"%s\" -version 2>&1 | findstr /i \"version\""
+    JAVA_VENDOR_WITH_JAVAHOME: java -XshowSettings:properties 2>&1 | findstr /i "java.vendor"
+    JAVA_VENDOR_WITH_JAVAPATH: "\"%s\\bin\\java\" -XshowSettings:properties 2>&1 | findstr /i \"java.vendor\""
+    JAVA_VENDOR: "\"%s\" -XshowSettings:properties 2>&1 | findstr /i \"java.vendor\""
+    PROCESS_STATUS: wmic process where 'CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get ProcessId /format:list
+    PROCESS_ARGUMENT: wmic process where 'CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    RUN_USER: wmic process where 'CommandLine like "%%::FIND_STR::%%" and not CommandLine like "%%wmic%%"' get ProcessId /format:list::MULTI::wmic process where 'ProcessId ="::FIND_PID::"' call getOwner | findstr /RC:"\<User\>"::MULTI::%s
+    JAVA_HOME_COMMAND: "echo %%JAVA_HOME%%"
+    CELL_COMMAND_CHECK_DIRECTORY: dir /B "%s"
+    CELL_COMMAND_EMPTY_DIRECTORY: dir /B "%s"
+    LS_FILES: dir /w bin\%s | findstr "%s"
+    JAVA_PATH: wmic process where 'CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format
+    GET_PROCESS: wmic process where 'CommandLine like "%%httpd%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    EXECUTED_TIME: wmic process where 'CommandLine like "%%%s%%" and not CommandLine like "%%wimc%%"' get CreationDate /format:list
+    FIND_FILE_WITH_PATH1: dir /w /a-d "%s\%s" | findstr /V Volume | findstr /V Total | findstr /V bytes | findstr /V "볼륨" | findstr /V "바이트"
+    FIND_FILE_WITH_PATH2: dir /w /a-d "%s\%s" | findstr /V Volume | findstr /V Total | findstr /V bytes
+    GET_USER_BY_PID: wmic process where 'ProcessId ="%s"' call getOwner | findstr /RC:"\<User\>"
+    FILE_LIST_ONE_LINE: dir /B "%s"
+
+    #wmic list, find registry, find string
+    #    TOMCAT_JAVA_PATH: wmic process get CommandLine | findStr /c:"::FIND_STR::"::MULTI::reg query "::FIND_REG_PATH::" /s /f "::FIND_STR::" /V "Jvm" | findstr /i "Jvm"::MULTI::%s
+    TOMCAT_JAVA_PATH: wmic process where 'CommandLine like "%%Tomcat%%" and ThreadCount ^> 1 and not CommandLine like "%%wmic%%"' get CommandLine /format:list::MULTI::reg query "::FIND_REG_PATH::" /s /f "Tomcat" /V "Jvm" | findstr /i "Jvm"::MULTI::%s
+    TOMCAT_CONFIG_SERVER: type "%s"
+    TOMCAT_CONFIG_ENV: type "%s"
+    TOMCAT_CONFIG_CONTEXT: type "%s"
+    TOMCAT_CONFIG_SETENV: type "%s"
+    CHECK_PATH: cd "%s"
+    TOMCAT_VERSION: "cd \"%s\\bin\" && version.bat | findstr /C:\"Server version:\""
+    TOMCAT_NUMBER: "cd \"%s\\bin\" && version.bat | findstr /C:\"Server number:\""
+    TOMCAT_VERSION_SERVICE: wmic service where 'name like "%%%s%%"' get description /format:list
+    TOMCAT_RELEASE_NOTE: "type \"%s\\RELEASE-NOTES\" | findstr /C:\"Apache Tomcat Version\""
+    #wmic list, find registry, find string
+    TOMCAT_VMOPTION: wmic process where 'CommandLine like "%%Tomcat%%" and ThreadCount ^> 1 and not CommandLine like "%%wmic%%"' get CommandLine /format:list::MULTI::reg query "::FIND_REG_PATH::" /s /f "Tomcat" /V "Options" | findstr /i "Options"::MULTI::"%s"
+    TOMCAT_DIRECTORY: dir /A:D /B "%s"
+    #wmic list , find registry, find user, find string
+    #    TOMCAT_RUN_USER: "wmic process get CommandLine, ProcessId | findStr /c:\"::FIND_STR::\"::MULTI::reg query \"::FIND_REG_PATH::\" /s /f \"::FIND_STR::\" /V \"Options\" | findstr /i \"Options\"::MULTI::wmic process where 'ProcessId =\"::FIND_PID::\"' call getOwner | findstr /RC:\"\\<User\\>\"::MULTI::%s"
+    TOMCAT_RUN_USER: wmic process where 'CommandLine like "%%Tomcat%%" and ThreadCount ^> 1 and not CommandLine like "%%wmic%%"' get CommandLine, ProcessId /format:list::MULTI::reg query "::FIND_REG_PATH::" /s /f "Tomcat" /V "Options" | findstr /i "Options"::MULTI::wmic process where 'ProcessId ="::FIND_PID::"' call getOwner | findstr /RC:"\<User\>"::MULTI::"%s"
+
+    APACHE_RUN_USER: wmic process where 'CommandLine like "%%httpd%%" and CommandLine like "%%::FIND_STR::%%" and not CommandLine like "%%wmic%%"' get ProcessId /format:list::MULTI::wmic process where 'ProcessId ="::FIND_PID::"' call getOwner | findstr /RC:"\<User\>"::MULTI::"%s"
+    APACHE_RUN_USER1: wmic process where 'CommandLine like "%%httpd%%" and CommandLine like "%%::FIND_STR::%%" and not CommandLine like "%%wmic%%"' get ProcessId /format:list::MULTI::wmic process where 'ProcessId ="::FIND_PID::"' call getOwner | findstr /RC:"\<User\>"::MULTI::"%s"
+    APACHE_VERSION: "\"%s\" -v"
+    APACHE_DUMP: "\"%s\" -D DUMP_INCLUDES"
+    APACHE_EXECUTED_TIME: wmic process where 'CommandLine like "%%httpd%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CreationDate /format:list
+    APACHE_EXECUTED_TIME_NOT_MONITOR: wmic process where 'CommandLine like "%%%s%%" and not CommandLine like "%%Monitor%%" and not CommandLine like "%%wmic%%"' get CreationDate /format:list
+
+    #    WEBLOGIC_GET_PROCESS: wmic path win32_process get | findstr "weblogic.Server" | findstr "AdminServer"
+    #    WEBLOGIC_CHECK_PROCESS: ""
+    #    WEBLOGIC_DOMAIN: ""
+    #    WEBLOGIC_PROCESS_NAME: ""
+    #    WEBLOGIC_PROCESS_LINK: "" # unused
+    JEUS_VERSION: ::MULTI::%s\bin\jeusadmin -version
+    JEUS_PROCESS: wmic path win32_process get | findstr "jeus.server" | findstr "%s"
+    JEUS_EXECUTED_TIME: wmic process where 'CommandLine like "%%jeus.server%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wimc%%" and not CommandLine like "%%jeus.server.NodemanagerBootstrapper%%"' get CreationDate /format:list
+    #    JEUS_CHECK_DIR:
+    JEUS_DEPLOYED_DATE: wmic DataFile where 'name = "%s"' get CreationDate::MULTI::wmic FSDIR where 'name = "%s"' get CreationDate
+    JEUS_DOMAIN_PATH_SCENARIO_STEP31: dir /s /w /a-d "%s\JEUSMain.xml" | findstr /V Volume | findstr /V Total | findstr /V bytes | findstr /V "볼륨" | findstr /V "바이트"::MULTI::example,LOCAL_HOST,security,samples
+    JEUS_DOMAIN_PATH_SCENARIO_STEP32: dir /s /w /a-d "%s\JEUSMain.xml" | findstr /V Volume | findstr /V Total | findstr /V bytes::MULTI::example,LOCAL_HOST,security,samples
+    JEUS_VERSION_SCENARIO1:
+    JEUS_VERSION_SCENARIO2: "\"%s\\bin\\jeusadmin\" -version"
+
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP1: wmic process where 'CommandLine like "%%%s%%" and CommandLine like "%%%s%%"  and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP21: set | findstr "WEBTOBDIR"
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP22: set | findstr "WEBTOBDIR"
+    WEBTOB_ENGINE_PATH_SCENARIO_STEP51:
+    COMMAND_WHICH: where %s
+    WEBTOB_VERSION: "\"%s\" -v"
+    WEBTOB_RUN_USER: wmic process where 'Name like "%%wsm%%" or Name like "%%hth%%" or Name like "%%htl%%"' call getOwner | findstr /RC:"\<User\>"
+    WEBTOB_FIND_CONFIG_FILE1: dir /w /a-d "%s\config\*.m" | findstr /V Volume | findstr /V Total | findstr /V bytes | findstr /V "볼륨" | findstr /V "바이트"
+    WEBTOB_FIND_CONFIG_FILE2: dir /w /a-d "%s\config\*.m" | findstr /V Volume | findstr /V Total | findstr /V bytes
+
+    #JBOSS
+    JBOSS_VERSION: "cd \"%s\\bin\" && standalone.bat -version"
+    JBOSS_VERSION_NOTE: "type \"%s\\version.txt\""
+    JBOSS_VMOPTION: wmic process where 'CommandLine like "%%jboss%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    JBOSS_STANDALONE_XML: type "%s"
+    JBOSS_DOMAIN_XML: type "%s"
+    JBOSS_DOMAIN_HOST_XML: type "%s"
+    JBOSS_STANDALONE_SETUP_ENV: type "%s"
+    JBOSS_WEB_XML: type "%s"
+    JBOSS_JAVA_PATH: wmic process where 'CommandLine like "%%java%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and CommandLine like "%%\\bin\\java%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    JBOSS_RUN_USER: wmic process where 'CommandLine like "%%jboss%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and ThreadCount ^> 1 and not CommandLine like "%%wmic%%"' get CommandLine, ProcessId /format:list::MULTI::wmic process where 'ProcessId ="::FIND_PID::"' call getOwner | findstr /RC:"\<User\>"
+    JBOSS_RUN_SERVER: wmic process where 'CommandLine like "%%java%%" and CommandLine like "%%jboss%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    JBOSS_PROCESS_RUN_SERVER: wmic process where 'CommandLine like "%%jboss%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    JBOSS_CURRENT_SEVER_VMOPTION: wmic process where 'CommandLine like "%%java%%" and CommandLine like "%%jboss%%" and not CommandLine like "%%org.jboss.as.standalone%%" and not CommandLine like "%%Process Controller%%" and not CommandLine like "%%Host Controller%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and CommandLine like "%%%s%%" and not CommandLine like "%%wmic%%"' get CommandLine /format:list
+    JBOSS_LISTEN_PORT: netstat -na | findstr %s | findstr LISTENING
+
+    #NGINX
+    NGINX_MASTER_PROCESS_PID:
+    NGINX_VERSION: "\"%s\" -v 2>&1"
+    NGINX_CONFIG_FILE: "\"%s\" -t -p \"%s\" 2>&1"

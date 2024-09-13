@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.K8sServiceMapper">
+    <resultMap id="k8sServiceResponse" type="io.playce.roro.common.dto.k8s.K8sServiceResponse" autoMapping="true">
+        <id property="serviceId" column="serviceId"/>
+        <collection property="targets" javaType="java.util.ArrayList" ofType="io.playce.roro.common.dto.k8s.ServicePortResponse" autoMapping="true">
+            <result property="name" column="servicePortName"/>
+            <result property="nodePort" column="NODEPORT"/>
+        </collection>
+        <collection property="selectorRawData" javaType="java.util.ArrayList" ofType="io.playce.roro.common.dto.k8s.Selector" autoMapping="true">
+        </collection>
+    </resultMap>
+    <select id="selectServices" resultMap="k8sServiceResponse">
+        select
+            s.OBJECT_ID AS serviceId,
+            s.NAME,
+            n.NAMESPACE_ID,
+            n.NAME AS namespaceName,
+            sp.NAME AS servicePortName,
+            sp.PORT,
+            sp.PROTOCOL,
+            sp.TARGET_PORT,
+            sp.NODEPORT,
+            s2.NAME as selectorKey,
+            s2.VALUE as selectorValue,
+            s.TYPE
+        from service s
+        join object o on s.OBJECT_ID = o.OBJECT_ID
+        join cluster_scan cs on o.CLUSTER_SCAN_ID = cs.CLUSTER_SCAN_ID
+        join k8s_cluster k8sc on cs.K8S_CLUSTER_ID = k8sc.K8S_CLUSTER_ID
+        join namespace_object_link nol on s.OBJECT_ID = nol.OBJECT_ID
+        join namespace n on nol.NAMESPACE_ID = n.NAMESPACE_ID
+        left join service_port sp on s.OBJECT_ID = sp.OBJECT_ID
+        left join selector s2 on s.OBJECT_ID = s2.OBJECT_ID
+        where PROJECT_ID = #{projectId}
+        and k8sc.K8S_CLUSTER_ID = #{k8sClusterId}
+        and cs.CLUSTER_SCAN_ID = #{clusterScanId}
+    </select>
+</mapper>

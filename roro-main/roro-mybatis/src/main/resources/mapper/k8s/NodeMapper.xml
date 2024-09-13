@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.NodeMapper">
+    <resultMap id="nodeResponse" type="io.playce.roro.common.dto.k8s.NodeResponse" autoMapping="true">
+        <id column="NODE_ID" property="nodeId"/>
+        <collection property="roles" javaType="java.util.ArrayList" ofType="string">
+            <result javaType="string" column="ROLES" />
+        </collection>
+    </resultMap>
+    <select id="selectNodes" resultMap="nodeResponse">
+        select nodes.NODE_ID, NODE_NAME, KUBELET_VERSION, EXTERNAL_IP, INTERNAL_IP, OS, ROLES
+        from (select n.NODE_ID,
+                     n.NAME                        as `NODE_NAME`,
+                     n.KUBELET_VERSION,
+                     IFNULL(n.EXTERNAL_IP, 'None') as `EXTERNAL_IP`,
+                     n.INTERNAL_IP,
+                     nl.VALUE                      as 'OS'
+              from node n
+                       join cluster_scan cs on cs.CLUSTER_SCAN_ID = n.CLUSTER_SCAN_ID
+                       join k8s_cluster kc on kc.K8S_CLUSTER_ID = cs.K8S_CLUSTER_ID
+                       join node_label nl on n.NODE_ID = nl.NODE_ID
+              where kc.PROJECT_ID = #{projectId}
+                and kc.K8S_CLUSTER_ID = #{k8sClusterId}
+                and cs.CLUSTER_SCAN_ID = #{clusterScanId}
+                and nl.NAME like 'kubernetes.io/os') nodes
+                 left join (select REPLACE(NAME, 'node-role.kubernetes.io/', '') as ROLES,
+                                   NODE_ID
+                            from node_label
+                            where name like 'node-role.kubernetes.io/%') roles
+                           on nodes.NODE_ID = roles.NODE_ID;
+    </select>
+</mapper>

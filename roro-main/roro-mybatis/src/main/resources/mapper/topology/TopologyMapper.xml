@@ -1,0 +1,673 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.topology.TopologyMapper">
+    <select id="selectServerIdsByServiceId" resultType="java.lang.Long">
+        select im.inventory_id
+          from inventory_master im
+          join service_inventory si
+            on si.inventory_id = im.inventory_id
+           and im.delete_yn = 'N'
+          join service_master sm
+            on sm.service_id = si.service_id
+           and sm.delete_yn = 'N'
+           and im.inventory_type_code = 'SVR'
+         where si.service_id = #{serviceId}
+    </select>
+    <select id="selectTopologyServers" resultType="io.playce.roro.common.dto.topology.TopologyServerResponse">
+        select im.inventory_id as id
+             , 'INV' as inventory_regist_type_code
+             , im.inventory_name as name
+             , sm.representative_ip_address as ip_address
+          from inventory_master im
+          join server_master sm
+            on sm.server_inventory_id = im.inventory_id
+         where im.project_id = #{projectId}
+           and im.inventory_id in <foreach item="server" index="index" collection="servers" open="(" separator="," close=")">#{server}</foreach>
+         union all
+        select dim.discovered_instance_id as id
+             , 'DISC' as inventory_regist_type_code
+             , 'DISC_SVR' as name
+             , dim.discovered_ip_address as ip_address
+          from discovered_instance_master dim
+          join inventory_master im
+            on im.inventory_id = dim.finder_inventory_id
+           and dim.delete_yn = 'N'
+           and dim.possession_inventory_id is null
+         where dim.project_id = #{projectId}
+           and dim.inventory_type_code = 'SVR'
+           and im.inventory_id in <foreach item="server" index="index" collection="servers" open="(" separator="," close=")">#{server}</foreach>
+         order by inventory_regist_type_code desc, name
+    </select>
+    <resultMap id="PortList" type="io.playce.roro.common.dto.topology.TopologyPortmapResponse" autoMapping="true">
+        <result property="isTargetInventory" column="is_target_inventory" typeHandler="io.playce.roro.mybatis.handler.YNTypeHandler"/>
+        <result property="isSourceInventory" column="is_source_inventory" typeHandler="io.playce.roro.mybatis.handler.YNTypeHandler"/>
+    </resultMap>
+    <select id="selectTopologyPortmap" resultMap="PortList">
+        select v_tgt.name as target_name
+             , v_tgt.is_inventory as is_target_inventory
+             , a.*
+             , v_src.is_inventory as is_source_inventory
+             , v_src.name as source_name
+          from (
+          select distinct if(dpr.inventory_direction_port_type_code = 'INB', dpr.svr_inv_ip_addr, dpr.target_ip_address) as target_ip
+               , dpr.service_port as port
+               , if(dpr.inventory_direction_port_type_code = 'INB', dpr.target_ip_address, dpr.svr_inv_ip_addr) as source_ip
+            from discovered_port_relation dpr
+            join inventory_master im
+              on im.inventory_id = dpr.server_inventory_id
+             and im.delete_yn = 'N'
+             and im.project_id = #{projectId}
+           where dpr.server_inventory_id in <foreach item="server" index="index" collection="servers" open="(" separator="," close=")">#{server}</foreach>
+          ) a
+            left join v_ip_name_map v_tgt
+              on v_tgt.ip_address = a.target_ip
+              and v_tgt.port = a.port
+             and v_tgt.project_id = #{projectId}
+            left join v_ip_name_map v_src
+              on v_src.ip_address = a.source_ip
+             and v_src.port = a.port
+             and v_src.project_id = #{projectId}
+    </select>
+    <resultMap id="NodeList" type="io.playce.roro.common.dto.topology.attr.Node" autoMapping="true">
+        <result property="isInventory" column="is_inventory" typeHandler="io.playce.roro.mybatis.handler.YNTypeHandler"/>
+    </resultMap>
+    <select id="selectInventoryNodesByParentId" resultMap="NodeList">
+        with recursive cte as (
+          select 1 as level
+               , a.*
+            from v_inventory_node a
+           where a.parent_id = #{parentId}
+             and a.project_id = #{projectId}
+           union all
+          select 1 + level as level
+               , p.*
+            from v_inventory_node p
+            join cte
+              on p.parent_id = cte.id
+             and p.project_id = #{projectId}
+        )
+        select cte.*
+          from cte
+        union all
+        select 0 as level
+             , v.*
+          from v_inventory_node v
+         where v.id = #{parentId}
+           and v.detail_type in ('SERV', 'INV')
+        order by level
+    </select>
+    <select id="selectDiscoveredNodesByIp" resultMap="NodeList">
+        select *
+          from v_discovered_node
+         where project_id = #{projectId}
+           and type = 'SVR'
+           and ip in <foreach item="ip" index="index" collection="ips" open="(" separator="," close=")">#{ip}</foreach>
+    </select>
+    <select id="selectServerInventoryIdsByIps" resultType="java.lang.Long">
+        select distinct sm.server_inventory_id
+          from server_master sm
+          join inventory_master im
+            on im.inventory_id = sm.server_inventory_id
+          join server_network_information sni
+            on sni.server_inventory_id = sm.server_inventory_id
+         where im.delete_yn = 'N'
+           and im.project_id = #{projectId}
+           and (
+               sni.address in <foreach item="ip" index="index" collection="ips" open="(" separator="," close=")">#{ip}</foreach>
+            or sm.representative_ip_address in <foreach item="ip" index="index" collection="ips" open="(" separator="," close=")">#{ip}</foreach>
+           )
+    </select>
+    <select id="selectDatasourceIdsByUrl" resultType="String">
+        select concat(if(dim.possession_inventory_id is null, concat(dim.inventory_regist_type_code, '-'), ''),
+                      dim.inventory_type_code,'-', dim.discovered_instance_id) as id
+          from discovered_instance_master dim
+          join database_instance di
+            on di.database_instance_id = dim.discovered_instance_id
+           and dim.inventory_type_code = 'DBMS'
+         where dim.delete_yn = 'N'
+           and dim.project_id = #{projectId}
+           and (dim.discovered_ip_address, dim.discovered_detail_division) in (
+            select distinct
+                    /*
+                     if(diii.discovered_instance_interface_ip_address = 'localhost', dim.discovered_ip_address,
+                        if(diii.discovered_instance_interface_ip_address = '127.0.0.1', dim.discovered_ip_address, diii.discovered_instance_interface_ip_address)) as discovered_instance_interface_ip_address
+                    */
+                   diii.discovered_instance_interface_ip_address
+                 , concat(diii.service_port, '|', diii.service_name)
+              from discovered_instance_master dim
+              join discovered_instance_interface dii
+                on dii.discovered_instance_interface_id = dim.discovered_instance_id
+              join discovered_instance_interface_ips diii
+                on diii.discovered_instance_interface_id = dii.discovered_instance_interface_id
+               and diii.discovered_instance_interface_seq = dii.discovered_instance_interface_seq
+               and dim.inventory_type_code = #{type}
+             where dim.delete_yn = 'N'
+               and dim.project_id = #{projectId}
+               and dim.discovered_instance_Id = #{typeId}
+           )
+    </select>
+    <select id="selectNodeById" resultMap="NodeList">
+        select *
+          from v_inventory_node
+         where project_id = #{projectId}
+           and id in <foreach item="id" index="index" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+         union all
+        select *
+          from v_discovered_node
+         where project_id = #{projectId}
+           and id in <foreach item="id" index="index" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <select id="selectServerInbound" resultType="io.playce.roro.common.dto.topology.TrafficResponse$TrafficInbound">
+        SELECT
+            m.service_port AS port,
+            UPPER(m.protocol) AS protocol,
+            m.known_port_name AS `type`,
+            m.target_ip_address AS source,
+            s.server_inventory_id AS server_id,
+            s.inventory_name AS server_name,
+            CASE
+                WHEN r.inventory_type_code = 'MW' THEN 'Middleware'
+                WHEN r.inventory_type_code = 'DBMS' THEN 'Database'
+                ELSE 'Server'
+            END AS resource_type,
+            r.inventory_id AS inventory_id,
+            r.discovered_instance_id AS resource_id,
+            r.inventory_name AS resource_name
+        FROM (
+            # Server의 Inbound에 대한 정보를 가져온다.
+            SELECT
+                sim.project_id,
+                dpr.known_port_name,
+                dpr.service_port,
+                dpr.target_ip_address,
+                dpr.protocol
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                   ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+                INNER JOIN DISCOVERED_PORT_RELATION dpr
+                   ON dpr.server_inventory_id = sim.inventory_id AND inventory_direction_port_type_code = 'INB'
+            WHERE
+                sim.project_id = #{projectId}
+                AND sim.inventory_id = #{serverId}
+            ) m
+            LEFT JOIN (
+                # 네트워크 카드에 등록된 Server IP 정보 , Discovered된 Server IP 정보를 가져온다.
+                SELECT
+                    sim.project_id,
+                    sim.inventory_id AS server_inventory_id,
+                    sim.inventory_name,
+                    sni.address AS server_ip
+                FROM
+                    INVENTORY_MASTER sim
+                    INNER JOIN SERVER_NETWORK_INFORMATION sni
+                       ON sim.inventory_id = sni.server_inventory_id
+                WHERE
+                    sim.inventory_type_code ='SVR'
+                    AND sim.delete_yn = 'N'
+                    AND sni.address NOT IN ('127.0.0.1')
+                    AND INET_ATON(sni.address) IS NOT NULL
+                UNION
+                SELECT
+                    dim.project_id,
+                    NULL AS server_inventory_id,
+                    'Discovered Server' AS inventory_name,
+                    discovered_ip_address AS server_ip
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                WHERE
+                    dim.inventory_type_code = 'SVR' AND dim.delete_yn = 'N'
+            ) s ON s.project_id = m.project_id AND s.server_ip = m.target_ip_address
+            LEFT JOIN (
+                # 해당 서버가 가지고 있는 미들웨어 및 DB의 Port 정보를 가져온다. (Resource)
+                # 현재 서비스 하고 있는 Port와 비교한다
+                # DB는 port 정보만을 가지고 판단하기 때문에 instance id가 없다.
+                SELECT
+                    im.inventory_id,
+                    mi.middleware_instance_name AS inventory_name,
+                    dim.discovered_instance_id,
+                    im.inventory_type_code,
+                    mip.middleware_instance_service_port AS port
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN MIDDLEWARE_MASTER mm
+                       ON mm.middleware_inventory_id = im.inventory_id AND im.inventory_type_code ='MW' AND im.delete_yn = 'N'
+                    INNER JOIN DISCOVERED_INSTANCE_MASTER dim
+                       ON im.inventory_id = dim.possession_inventory_id AND dim.delete_yn = 'N'
+                    INNER JOIN MIDDLEWARE_INSTANCE mi
+                       ON mi.middleware_instance_id = dim.discovered_instance_id
+                    INNER JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip
+                       ON mip.middleware_instance_id = mi.middleware_instance_id
+                WHERE
+                    im.project_id = #{projectId}
+                    AND im.server_inventory_id = #{serverId}
+                UNION
+                SELECT
+                    im.inventory_id,
+                    im.inventory_name,
+                    NULL AS discovered_instance_id,
+                    im.inventory_type_code,
+                    dm.connection_port AS port
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN DATABASE_MASTER dm
+                       ON dm.database_inventory_id = im.inventory_id AND im.inventory_type_code ='DBMS' AND im.delete_yn = 'N'
+                WHERE
+                    im.project_id = #{projectId}
+                    AND im.server_inventory_id = #{serverId}
+            ) r ON r.port = m.service_port
+    </select>
+
+    <select id="selectServerOutbound" resultType="io.playce.roro.common.dto.topology.TrafficResponse$TrafficOutbound">
+        SELECT
+            m.service_port AS port,
+            UPPER(m.protocol) AS protocol,
+            m.known_port_name AS `type`,
+            m.target_ip_address AS target,
+            s.server_inventory_id AS server_id,
+            s.inventory_name AS server_name,
+            CASE
+                WHEN r.inventory_type_code = 'MW' THEN 'Middleware'
+                WHEN r.inventory_type_code = 'DBMS' THEN 'Database'
+                ELSE 'Server'
+            END AS resource_type,
+            r.inventory_id AS inventory_id,
+            r.discovered_instance_id AS resource_id,
+            r.inventory_name AS resource_name
+        FROM (
+            # Server의 Outbound에 대한 정보를 가져온다.
+            SELECT
+                sim.project_id,
+                dpr.known_port_name,
+                dpr.service_port,
+                dpr.target_ip_address,
+                dpr.protocol
+            FROM
+                INVENTORY_MASTER sim
+                INNER JOIN SERVER_MASTER sm
+                   ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+                INNER JOIN DISCOVERED_PORT_RELATION dpr
+                   ON dpr.server_inventory_id = sim.inventory_id AND inventory_direction_port_type_code = 'OUTB'
+            WHERE
+                sim.project_id = #{projectId}
+                AND sim.inventory_id = #{serverId}
+            ) m
+            LEFT JOIN (
+                # 네트워크 카드에 등록된 Server IP 정보 , Discovered된 Server IP 정보를 가져온다.
+                SELECT
+                    sim.project_id,
+                    sim.inventory_id AS server_inventory_id,
+                    sim.inventory_name,
+                    sni.address AS server_ip
+                FROM
+                    INVENTORY_MASTER sim
+                    INNER JOIN SERVER_NETWORK_INFORMATION sni
+                       ON sim.inventory_id = sni.server_inventory_id
+                WHERE
+                    sim.inventory_type_code ='SVR'
+                    AND sim.delete_yn = 'N'
+                    AND sni.address NOT IN ('127.0.0.1')
+                    AND INET_ATON(sni.address) IS NOT NULL
+                UNION
+                SELECT
+                    dim.project_id,
+                    NULL AS server_inventory_id,
+                    'Discovered Server' AS inventory_name,
+                    discovered_ip_address AS server_ip
+                FROM
+                    DISCOVERED_INSTANCE_MASTER dim
+                WHERE
+                    dim.inventory_type_code = 'SVR' AND dim.delete_yn = 'N'
+            ) s ON s.project_id = m.project_id AND s.server_ip = m.target_ip_address
+            LEFT JOIN (
+                # 해당 서버가 가지고 있는 미들웨어 및 DB의 IP, Port 정보를 가져온다. (Resource)
+                # OutBound IP, Port와 비교한다
+                # DB는 port 정보만을 가지고 판단하기 때문에 instance id가 없다.
+                SELECT
+                    im.inventory_id,
+                    mi.middleware_instance_name AS inventory_name,
+                    dim.discovered_instance_id,
+                    im.inventory_type_code,
+                    si.server_ip,
+                    mip.middleware_instance_service_port AS port
+                FROM (
+                    SELECT
+                        sim.project_id,
+                        sim.inventory_id AS server_inventory_id,
+                        sim.inventory_name,
+                        sni.address AS server_ip
+                    FROM
+                        INVENTORY_MASTER sim
+                        INNER JOIN SERVER_NETWORK_INFORMATION sni
+                           ON sim.inventory_id = sni.server_inventory_id
+                    WHERE
+                        sim.inventory_type_code ='SVR'
+                        AND sim.delete_yn = 'N'
+                        AND sni.address NOT IN ('127.0.0.1')
+                        AND INET_ATON(sni.address) IS NOT NULL
+                    ) si
+                    INNER JOIN INVENTORY_MASTER im
+                       ON im.server_inventory_id = si.server_inventory_id
+                    INNER JOIN MIDDLEWARE_MASTER mm
+                       ON mm.middleware_inventory_id = im.inventory_id AND im.inventory_type_code ='MW' AND im.delete_yn = 'N'
+                    INNER JOIN DISCOVERED_INSTANCE_MASTER dim
+                       ON im.inventory_id = dim.possession_inventory_id AND dim.delete_yn = 'N'
+                    INNER JOIN MIDDLEWARE_INSTANCE mi
+                       ON mi.middleware_instance_id = dim.discovered_instance_id
+                    INNER JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip
+                       ON mip.middleware_instance_id = mi.middleware_instance_id
+                WHERE
+                    im.project_id = #{projectId}
+                UNION
+                SELECT
+                    im.inventory_id,
+                    im.inventory_name,
+                    NULL AS discovered_instance_id,
+                    im.inventory_type_code,
+                    si.server_ip,
+                    dm.connection_port AS port
+                FROM (
+                    SELECT
+                        sim.project_id,
+                        sim.inventory_id AS server_inventory_id,
+                        sim.inventory_name,
+                        sni.address AS server_ip
+                    FROM
+                        INVENTORY_MASTER sim
+                        INNER JOIN SERVER_NETWORK_INFORMATION sni
+                           ON sim.inventory_id = sni.server_inventory_id
+                    WHERE
+                        sim.inventory_type_code ='SVR'
+                        AND sim.delete_yn = 'N'
+                        AND sni.address NOT IN ('127.0.0.1')
+                        AND INET_ATON(sni.address) IS NOT NULL
+                    ) si
+                    INNER JOIN INVENTORY_MASTER im
+                       ON im.server_inventory_id = si.server_inventory_id
+                    INNER JOIN DATABASE_MASTER dm
+                       ON dm.database_inventory_id = im.inventory_id AND im.inventory_type_code ='DBMS' AND im.delete_yn = 'N'
+                WHERE
+                    im.project_id = #{projectId}
+            ) r ON r.port = m.service_port AND r.server_ip = m.target_ip_address
+    </select>
+
+    <select id="selectDiscoveredServerInbound" resultType="io.playce.roro.common.dto.topology.TrafficResponse$TrafficInbound">
+        SELECT
+            dpr.service_port AS port,
+            UPPER(dpr.protocol) AS protocol,
+            dpr.known_port_name AS `type`,
+            dpr.svr_inv_ip_addr AS source,
+            dpr.server_inventory_id,
+            si.server_inventory_name AS server_name,
+            CASE
+                WHEN r.inventory_type_code = 'MW' THEN 'Middleware'
+                WHEN r.inventory_type_code = 'DBMS' THEN 'Database'
+                ELSE 'Server'
+            END AS resource_type,
+            r.inventory_id,
+            r.discovered_instance_id AS resource_id,
+            r.inventory_name AS resource_name
+        FROM
+            DISCOVERED_INSTANCE_MASTER dim
+            INNER JOIN DISCOVERED_PORT_RELATION dpr
+               ON dpr.target_ip_address = dim.discovered_ip_address AND dpr.inventory_direction_port_type_code = 'OUTB'
+            LEFT JOIN (
+                -- Server Iventory Information
+                SELECT
+                    sim.project_id,
+                    sm.server_inventory_id,
+                    sim.inventory_name AS server_inventory_name,
+                    sm.representative_ip_address AS server_ip
+                FROM
+                    INVENTORY_MASTER sim
+                    INNER JOIN SERVER_MASTER sm
+                       ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si ON si.server_inventory_id = dpr.server_inventory_id
+            LEFT JOIN (
+                # 해당 서버가 가지고 있는 미들웨어 및 DB의 Port 정보를 가져온다. (Resource)
+                # 현재 서비스 하고 있는 Port와 비교한다
+                # DB는 port 정보만을 가지고 판단하기 때문에 instance id가 없다.
+                SELECT
+                    im.inventory_id,
+                    mi.middleware_instance_name AS inventory_name,
+                    dim.discovered_instance_id,
+                    im.inventory_type_code,
+                    mip.middleware_instance_service_port AS port,
+                    im.server_inventory_id
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN MIDDLEWARE_MASTER mm
+                       ON mm.middleware_inventory_id = im.inventory_id AND im.inventory_type_code ='MW' AND im.delete_yn = 'N'
+                    INNER JOIN DISCOVERED_INSTANCE_MASTER dim
+                       ON im.inventory_id = dim.possession_inventory_id AND dim.delete_yn = 'N'
+                    INNER JOIN MIDDLEWARE_INSTANCE mi
+                       ON mi.middleware_instance_id = dim.discovered_instance_id
+                    INNER JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip
+                       ON mip.middleware_instance_id = mi.middleware_instance_id
+                WHERE
+                    im.project_id = #{projectId}
+                UNION
+                SELECT
+                    im.inventory_id,
+                    im.inventory_name,
+                    NULL AS discovered_instance_id,
+                    im.inventory_type_code,
+                    dm.connection_port AS port,
+                    im.server_inventory_id
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN DATABASE_MASTER dm
+                       ON dm.database_inventory_id = im.inventory_id AND im.inventory_type_code ='DBMS' AND im.delete_yn = 'N'
+                WHERE
+                    im.project_id = #{projectId}
+            ) r ON r.port = dpr.service_port AND r.server_inventory_id = dpr.server_inventory_id
+        WHERE
+            dim.project_id = #{projectId}
+            AND dim.discovered_instance_id = #{discoveredInstanceId}
+            AND dim.inventory_type_code = 'SVR'
+            AND dim.inventory_regist_type_code = 'DISC'
+    </select>
+
+    <select id="selectDiscoveredServerOutbound" resultType="io.playce.roro.common.dto.topology.TrafficResponse$TrafficOutbound">
+        SELECT
+            dpr.service_port AS port,
+            UPPER(dpr.protocol) AS protocol,
+            dpr.known_port_name AS `type`,
+            dpr.svr_inv_ip_addr AS target,
+            dpr.server_inventory_id,
+            si.server_inventory_name AS server_name,
+            CASE
+                WHEN r.inventory_type_code = 'MW' THEN 'Middleware'
+                WHEN r.inventory_type_code = 'DBMS' THEN 'Database'
+                ELSE 'Server'
+                END AS resource_type,
+            r.inventory_id,
+            r.discovered_instance_id AS resource_id,
+            r.inventory_name AS resource_name
+        FROM
+            DISCOVERED_INSTANCE_MASTER dim
+            INNER JOIN DISCOVERED_PORT_RELATION dpr
+               ON dpr.target_ip_address = dim.discovered_ip_address AND dpr.inventory_direction_port_type_code = 'INB'
+            LEFT JOIN (
+                -- Server Iventory Information
+                SELECT
+                    sim.project_id,
+                    sm.server_inventory_id,
+                    sim.inventory_name AS server_inventory_name,
+                    sm.representative_ip_address AS server_ip
+                FROM
+                    INVENTORY_MASTER sim
+                    INNER JOIN SERVER_MASTER sm
+                       ON sm.server_inventory_id = sim.inventory_id AND inventory_type_code ='SVR' AND sim.delete_yn = 'N'
+            ) si ON si.server_inventory_id = dpr.server_inventory_id
+            LEFT JOIN (
+                # 해당 서버가 가지고 있는 미들웨어 및 DB의 Port 정보를 가져온다. (Resource)
+                # 현재 서비스 하고 있는 Port와 비교한다
+                # DB는 port 정보만을 가지고 판단하기 때문에 instance id가 없다.
+                SELECT
+                    im.inventory_id,
+                    mi.middleware_instance_name AS inventory_name,
+                    dim.discovered_instance_id,
+                    im.inventory_type_code,
+                    mip.middleware_instance_service_port AS port,
+                    im.server_inventory_id
+                FROM
+                    INVENTORY_MASTER im
+                    INNER JOIN MIDDLEWARE_MASTER mm
+                       ON mm.middleware_inventory_id = im.inventory_id AND im.inventory_type_code ='MW' AND im.delete_yn = 'N'
+                    INNER JOIN DISCOVERED_INSTANCE_MASTER dim
+                       ON im.inventory_id = dim.possession_inventory_id AND dim.delete_yn = 'N'
+                    INNER JOIN MIDDLEWARE_INSTANCE mi
+                       ON mi.middleware_instance_id = dim.discovered_instance_id
+                    INNER JOIN MIDDLEWARE_INSTANCE_PROTOCOL mip
+                       ON mip.middleware_instance_id = mi.middleware_instance_id
+                WHERE
+                    im.project_id = #{projectId}
+                UNION
+                SELECT
+                    im.inventory_id,
+                    im.inventory_name,
+                    NULL AS discovered_instance_id,
+                    im.inventory_type_code,
+                    dm.connection_port AS port,
+                    im.server_inventory_id
+                FROM
+                    INVENTORY_MASTER im
+                INNER JOIN DATABASE_MASTER dm
+                    ON dm.database_inventory_id = im.inventory_id AND im.inventory_type_code ='DBMS' AND im.delete_yn = 'N'
+                WHERE
+                    im.project_id = #{projectId}
+            ) r ON r.port = dpr.service_port AND r.server_inventory_id = dpr.server_inventory_id
+        WHERE
+            dim.project_id = #{projectId}
+            AND dim.discovered_instance_id = #{discoveredInstanceId}
+            AND dim.inventory_type_code = 'SVR'
+            AND dim.inventory_regist_type_code = 'DISC'
+    </select>
+    <select id="selectDiscoveredPortRelations"
+            resultType="io.playce.roro.common.dto.topology.DiscoveredRelation">
+        select dpr.target_ip_address
+             , dpr.svr_inv_ip_addr
+             , dpr.service_port
+             , lower(dpr.protocol) as protocol
+             , dpr.inventory_direction_port_type_code
+          from discovered_port_relation dpr
+          join inventory_master im
+            on im.inventory_id = dpr.server_inventory_id
+         where im.project_id = #{projectId}
+           and dpr.svr_inv_ip_addr = #{ip}
+    </select>
+    <select id="selectNodePosition" resultType="java.lang.String">
+        select config_contents
+          from topology_node_position
+         where type = #{type}
+           and type_id = #{typeId}
+    </select>
+    <select id="selectExternalNodes" resultType="io.playce.roro.common.dto.topology.attr.Node">
+        select concat('EXT','-', ec.ip) as id
+             , 'EXT' as type
+             , null as type_id
+             , ec.ip as name
+             , null as service_names
+             , if(sum(if(ec.protocol in ('HTTP', 'HTTPS', 'WS', 'WSS'), 1, 0)) / count(1) > 0, 'WEB', 'OTHER') as detail_type
+             , 'ROOT' as parent_id
+             , ec.ip as ip
+             , false as is_inventory
+             , null as engine_id
+             , null as solution_name
+             , null as running_status
+             , ecl.label
+          from external_connection ec
+          join application_master am
+            on am.application_inventory_id = ec.application_inventory_id
+          left join external_connection_label ecl
+            on ecl.ip = ec.ip
+          join inventory_master im
+            on im.inventory_id = am.application_inventory_id
+           and im.delete_yn = 'N'
+          left join excluded_external_connection eec
+            on eec.project_id = im.project_id
+           and eec.ip = ec.ip
+         where im.project_id = #{projectId}
+           and eec.ip is null
+           and ec.application_inventory_id in
+           <foreach collection="appIds" index="index" item="appId" open="(" separator="," close=")">#{appId}</foreach>
+         group by im.project_id
+             , ec.ip
+    </select>
+
+    <select id="selectExternalLinks" resultType="io.playce.roro.common.dto.topology.attr.Link">
+        select distinct
+               concat('APP', '-', dim.discovered_instance_id) as source
+             , concat('EXT', '-', ip) as target
+             , 'CONN_EXT' as category
+          from external_connection ec
+          join discovered_instance_master dim
+            on dim.possession_inventory_id = ec.application_inventory_id
+          join inventory_master im
+            on im.inventory_id = ec.application_inventory_id
+         where im.project_id = #{projectId}
+           and ec.application_inventory_id in
+            <foreach collection="appIds" index="index" item="appId" open="(" separator="," close=")">#{appId}</foreach>
+    </select>
+
+    <select id="selectExternalLinkLabels" resultType="java.util.HashMap">
+        select concat(a.source, ' -> ', a.target, '-', ip, ':', ifnull(port, 0)) as id
+             , a.ip
+             , a.port
+             , a.protocol
+          from (
+            select distinct concat('APP', '-', dim.discovered_instance_id) as source
+                 , concat('EXT', '-', ip) as target
+                 , ip
+                 , port
+                 , protocol
+              from external_connection ec
+              join discovered_instance_master dim
+                on dim.possession_inventory_id = ec.application_inventory_id
+              join inventory_master im
+                on im.inventory_id = ec.application_inventory_id
+               and im.delete_yn = 'N'
+             where im.project_id = #{projectId}
+               and ec.application_inventory_id in
+                <foreach collection="appIds" index="index" item="appId" open="(" separator="," close=")">#{appId}</foreach>
+          ) a
+    </select>
+    <select id="selectApplicationTopologyNodes" resultType="io.playce.roro.common.dto.topology.attr.Node">
+        select *
+          from i_app_node
+         where engine_id = #{appId}
+         union all
+        select *
+          from i_middleware_node
+         where id = (select parent_id from i_app_node where engine_id = #{appId})
+         union all
+        select *
+          from i_server_node
+         where id = (select parent_id from i_app_node where engine_id = #{appId})
+    </select>
+    <select id="selectExcludedExternalConnections" resultType="java.lang.String">
+        select distinct ec.ip
+          from excluded_external_connection eec
+          join inventory_master im
+            on im.project_id = eec.project_id
+          join service_inventory si
+            on si.inventory_id = im.inventory_id
+          join service_master sm
+            on sm.service_id = si.service_id
+          left join external_connection ec
+            on ec.ip = eec.ip
+           and im.inventory_id = ec.application_inventory_id
+         where ec.application_inventory_id is not null
+         <if test="type == 'SERV'">
+             and si.service_id = #{typeId}
+         </if>
+         <if test="type == 'SVR'">
+           and im.server_inventory_id = #{typeId}
+         </if>
+         <if test="type == 'APP'">
+           and ec.application_inventory_id = #{typeId}
+         </if>
+    </select>
+</mapper>

@@ -1,0 +1,15 @@
+# Web Configuration
+server:
+  port: 8082
+  servlet:
+    context-path: /roro
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+# File Upload Configuration
+servlet:
+  multipart:
+    max-file-size: 500MB
+    max-request-size: 500MB

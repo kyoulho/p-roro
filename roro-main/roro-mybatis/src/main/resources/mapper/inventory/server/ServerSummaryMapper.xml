@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.inventory.server.ServerSummaryMapper">
+
+    <select id="selectServerSummary" parameterType="Long" resultType="io.playce.roro.common.dto.inventory.server.ServerSummaryResponse">
+        select ss.host_name,
+               ss.vendor_name,
+               ss.cpu_count,
+               ss.cpu_core_count,
+               ss.cpu_socket_count,
+               ss.cpu_architecture,
+               ss.os_kernel,
+               ss.os_name,
+               ss.os_family,
+               ss.os_version,
+               ss.mem_size AS memorySize,
+               ss.swap_size,
+               ss.OS_ALIAS
+        from server_summary ss
+        where ss.server_inventory_id = #{serverInventoryId}
+    </select>
+</mapper>

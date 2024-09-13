@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.k8s.PodMapper">
+    <resultMap id="podResMap" type="io.playce.roro.common.dto.k8s.PodResponse" autoMapping="true">
+        <id property="podId" column="pod_id"/>
+        <collection property="containers" ofType="io.playce.roro.common.dto.k8s.Container" autoMapping="true">
+            <id property="containerId" column="container_id"/>
+        </collection>
+    </resultMap>
+    <select id="selectPods" resultMap="podResMap">
+select o.object_id as pod_id
+     , o.name
+     , ns.namespace_id
+     , ns.name as namespace_name
+     , n.node_id
+     , n.name as node_name
+     , c.container_id
+     , c.image
+  from object o
+  join pod p
+    on p.object_id = o.object_id
+  join container c
+    on c.object_id = p.object_id
+  join namespace_object_link nol
+    on nol.object_id = o.object_id
+  join namespace ns
+    on ns.namespace_id = nol.namespace_id
+  join node n
+    on n.node_id = p.node_id
+  join cluster_scan cs
+    on cs.cluster_scan_id = o.cluster_scan_id
+  join k8s_cluster kc
+    on kc.k8s_cluster_id = cs.k8s_cluster_id
+ where kc.project_id = #{projectId}
+   and kc.k8s_cluster_id = #{k8sClusterId}
+   and cs.cluster_scan_id = #{clusterScanId}
+ order by o.object_id, c.container_id
+    </select>
+</mapper>

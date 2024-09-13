@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.playce.roro.mybatis.domain.hostscan.HostScanMapper">
+
+    <resultMap id="discoveredHostDetail" type="io.playce.roro.common.dto.hostscan.DiscoveredHostDto">
+        <id property="ipAddress" column="IP_ADDRESS" javaType="String"/>
+        <result property="osName" column="OS_NAME" javaType="String"/>
+        <collection property="registeredServers" javaType="java.util.ArrayList" ofType="io.playce.roro.common.dto.hostscan.RegisteredServerDto">
+            <result property="serverInventoryId" column="SERVER_INVENTORY_ID" javaType="Long"/>
+            <result property="inventoryName" column="INVENTORY_NAME" javaType="String"/>
+            <result property="connectionPort" column="CONNECTION_PORT" javaType="Integer"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectDiscoveredHostAndRegisteredServers" resultMap="discoveredHostDetail">
+        SELECT dh.IP_ADDRESS,
+               dh.OS_NAME,
+               si.SERVER_INVENTORY_ID,
+               si.INVENTORY_NAME,
+               si.CONNECTION_PORT
+        FROM HOST_SCAN_HISTORY hsr
+        INNER JOIN DISCOVERED_HOST dh ON hsr.SCAN_HISTORY_ID = dh.SCAN_HISTORY_ID
+         LEFT JOIN (
+            -- Server Inventory
+            SELECT sm.REPRESENTATIVE_IP_ADDRESS,
+                   sm.SERVER_INVENTORY_ID,
+                   im.INVENTORY_NAME,
+                   sm.CONNECTION_PORT
+            FROM INVENTORY_MASTER im
+            INNER JOIN SERVER_MASTER sm ON im.inventory_id = sm.server_inventory_id
+            WHERE im.DELETE_YN = 'N'
+              AND im.inventory_type_code = 'SVR'
+              AND im.PROJECT_ID = #{projectId}
+            ) si ON dh.IP_ADDRESS = si.REPRESENTATIVE_IP_ADDRESS
+        WHERE hsr.SCAN_HISTORY_ID = #{scanHistoryId}
+          AND hsr.DELETE_YN = 'N'
+    </select>
+
+    <select id="selectIpAddressAndOsName" resultType="io.playce.roro.common.dto.hostscan.DiscoveredHostDto">
+        SELECT
+            IP_ADDRESS,
+            OS_NAME
+        FROM DISCOVERED_HOST
+        WHERE SCAN_HISTORY_ID = #{scanHistoryId}
+    </select>
+</mapper>
